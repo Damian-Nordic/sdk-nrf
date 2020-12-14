@@ -305,6 +305,7 @@
 
 .. _`Windows Hardware Lab Kit`: https://docs.microsoft.com/en-us/windows-hardware/test/hlk/
 
+.. _`Connected Home over IP`: https://www.connectedhomeip.com/
 .. ### Source: ietf.org
 
 .. _`CoAP response codes`: https://tools.ietf.org/html/rfc7252#section-12.1.2
@@ -499,6 +500,9 @@
 .. _`HID usage tables`: https://www.usb.org/hid
 
 .. _`TinyCBOR`: https://intel.github.io/tinycbor/current/
+
+.. _`Android CHIPTool`: https://github.com/nrfconnect/sdk-connectedhomeip/tree/master/src/android/CHIPTool
+.. _`Commissioning nRF Connect Accessory using Android CHIPTool`: https://github.com/nrfconnect/sdk-connectedhomeip/blob/master/docs/guides/nrfconnect_android_commissioning.md
 
 .. _`BH1749NUC-E`: https://www.rohm.com/datasheet/BH1749NUC/bh1749nuc-e
 
