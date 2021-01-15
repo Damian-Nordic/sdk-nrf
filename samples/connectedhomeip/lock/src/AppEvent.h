@@ -14,14 +14,8 @@ struct AppEvent {
 	enum OtherEventType : uint8_t { FactoryReset = CompleteLockAction + 1, StartThread, StartBleAdvertising };
 
 	AppEvent() = default;
-
-	AppEvent(LockEventType type, bool chipInitiated) : Type(type), LockEvent{ chipInitiated }
-	{
-	}
-
-	AppEvent(OtherEventType type) : Type(type)
-	{
-	}
+	AppEvent(LockEventType type, bool chipInitiated) : Type(type), LockEvent{ chipInitiated } {}
+	explicit AppEvent(OtherEventType type) : Type(type) {}
 
 	uint8_t Type;
 

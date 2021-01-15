@@ -20,8 +20,8 @@ public:
 private:
 	static void FieldDetectionHandler(void *context, nfc_t2t_event event, const uint8_t *data, size_t data_length);
 
-	constexpr static uint8_t mNdefBufferSize = 128;
+	constexpr static uint8_t kNdefBufferSize = 128;
 
-	uint8_t mNdefBuffer[mNdefBufferSize];
+	uint8_t mNdefBuffer[kNdefBufferSize];
 	bool mIsTagStarted;
 };

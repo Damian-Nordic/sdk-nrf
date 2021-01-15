@@ -15,8 +15,6 @@ struct k_timer;
 
 class AppTask {
 public:
-	static constexpr size_t APP_EVENT_QUEUE_SIZE = 10;
-
 	int StartApp();
 
 	void PostEvent(const AppEvent &aEvent);

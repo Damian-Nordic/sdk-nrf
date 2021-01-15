@@ -38,8 +38,6 @@ bool BoltLockManager::IsUnlocked()
 
 bool BoltLockManager::InitiateAction(Action action, bool chipInitiated)
 {
-	State newState = mState;
-
 	// Initiate Lock/Unlock Action only when the previous one is complete.
 	switch (action) {
 	case Action::Lock:
@@ -61,7 +59,7 @@ bool BoltLockManager::InitiateAction(Action action, bool chipInitiated)
 	}
 
 	mChipInitiatedAction = chipInitiated;
-	StartTimer(ACTUATOR_MOVEMENT_PERIOS_MS);
+	StartTimer(kActuatorMovementPeriodMs);
 	return true;
 }
 

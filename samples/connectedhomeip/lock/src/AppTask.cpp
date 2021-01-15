@@ -23,17 +23,17 @@
 #include <app/server/Server.h>
 #include <dk_buttons_and_leds.h>
 #include <logging/log.h>
-#include <setup_payload/QRCodeSetupPayloadGenerator.h>
-#include <setup_payload/SetupPayload.h>
 #include <zephyr.h>
 
 using namespace ::chip::DeviceLayer;
 
 LOG_MODULE_DECLARE(app);
-K_MSGQ_DEFINE(sAppEventQueue, sizeof(AppEvent), AppTask::APP_EVENT_QUEUE_SIZE, alignof(AppEvent));
 
 namespace
 {
+static constexpr size_t kAppEventQueueSize = 10;
+
+K_MSGQ_DEFINE(sAppEventQueue, sizeof(AppEvent), kAppEventQueueSize, alignof(AppEvent));
 LEDWidget sStatusLED;
 LEDWidget sLockLED;
 

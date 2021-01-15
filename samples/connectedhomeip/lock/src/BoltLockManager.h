@@ -27,7 +27,7 @@ public:
 private:
 	enum class State : uint8_t { LockingInitiated = 0, LockingCompleted, UnlockingInitiated, UnlockingCompleted };
 
-	static constexpr uint32_t ACTUATOR_MOVEMENT_PERIOS_MS = 2000;
+	static constexpr uint32_t kActuatorMovementPeriodMs = 2000;
 
 	void StartTimer(uint32_t aTimeoutMs);
 	void CancelTimer();
