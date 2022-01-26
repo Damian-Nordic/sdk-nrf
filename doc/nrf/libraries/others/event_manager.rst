@@ -154,14 +154,18 @@ The following code example shows a source file for the event type ``sample_event
    {
 	   struct sample_event *event = cast_sample_event(eh);
 
-	   return snprintf(buf, buf_len, "val1=%d val2=%d val3=%d", event->value1,
+	   EVENT_MANAGER_LOG(eh, "val1=%d val2=%d val3=%d", event->value1,
 			   event->value2, event->value3);
+	   return 0;
    }
 
    EVENT_TYPE_DEFINE(sample_event,	/* Unique event name. */
 		     true,		/* Event logged by default. */
 		     log_sample_event,	/* Function logging event data. */
 		     NULL);		/* No event info provided. */
+
+.. note::
+	There is a deprecated way of logging Event Manager events by writing string to the provided buffer which is supported until NCS2.0.
 
 Submitting an event
 ===================
@@ -230,6 +234,7 @@ To turn a module into a listener for specific event types, complete the followin
 For subscribing to an event type, the Event Manager provides three types of subscriptions, differing in priority.
 They can be registered with the following macros:
 
+* :c:macro:`EVENT_SUBSCRIBE_FIRST` - notification as the first subscriber
 * :c:macro:`EVENT_SUBSCRIBE_EARLY` - notification before other listeners
 * :c:macro:`EVENT_SUBSCRIBE` - standard notification
 * :c:macro:`EVENT_SUBSCRIBE_FINAL` - notification as the last, final subscriber

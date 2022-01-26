@@ -715,6 +715,11 @@ static void nrf_cloud_fota_cb_handler(const struct nrf_cloud_fota_evt
 	switch (evt->id) {
 	case NRF_CLOUD_FOTA_EVT_START: {
 		LOG_DBG("NRF_CLOUD_FOTA_EVT_START");
+		struct nrf_cloud_evt cloud_evt = {
+			.type = NRF_CLOUD_EVT_FOTA_START
+		};
+
+		nct_apply_update(&cloud_evt);
 		break;
 	}
 	case NRF_CLOUD_FOTA_EVT_DONE: {
@@ -739,6 +744,11 @@ static void nrf_cloud_fota_cb_handler(const struct nrf_cloud_fota_evt
 	}
 	case NRF_CLOUD_FOTA_EVT_ERROR: {
 		LOG_ERR("NRF_CLOUD_FOTA_EVT_ERROR");
+		struct nrf_cloud_evt cloud_evt = {
+			.type = NRF_CLOUD_EVT_FOTA_ERROR
+		};
+
+		nct_apply_update(&cloud_evt);
 		break;
 	}
 	case NRF_CLOUD_FOTA_EVT_ERASE_PENDING: {
@@ -1042,6 +1052,7 @@ int nct_init(const char * const client_id)
 
 void nct_uninit(void)
 {
+	LOG_DBG("Uninitializing nRF Cloud transport");
 	dc_endpoint_free();
 	nct_reset_topics();
 
@@ -1347,15 +1358,16 @@ int nct_disconnect(void)
 	return mqtt_disconnect(&nct.client);
 }
 
-void nct_process(void)
+int nct_process(void)
 {
 	int err;
+	int ret;
 
 	err = mqtt_input(&nct.client);
 	if (err) {
 		LOG_ERR("MQTT input error: %d", err);
 		if (err != -ENOTCONN) {
-			return;
+			return err;
 		}
 	} else if (nct.client.unacked_ping) {
 		LOG_DBG("Previous MQTT ping not acknowledged");
@@ -1365,17 +1377,24 @@ void nct_process(void)
 		if (err && (err != -EAGAIN)) {
 			LOG_ERR("MQTT ping error: %d", err);
 		} else {
-			return;
+			return err;
 		}
+	}
+
+	ret = nct_disconnect();
+	if (ret) {
+		LOG_ERR("Error disconnecting from cloud: %d", ret);
 	}
 
 	struct nct_evt evt = { .status = err };
 
 	evt.type = NCT_EVT_DISCONNECTED;
-	err = nct_input(&evt);
-	if (err) {
-		LOG_ERR("Error sending event to application:%d", err);
+	ret = nct_input(&evt);
+	if (ret) {
+		LOG_ERR("Error sending event to application: %d", err);
+		err = ret;
 	}
+	return err;
 }
 
 int nct_keepalive_time_left(void)

@@ -54,6 +54,14 @@ choice OPENTHREAD_SECURITY
 	default OPENTHREAD_NRF_SECURITY_CHOICE
 endchoice
 
+config MBEDTLS_SSL_PROTO_DTLS
+	bool
+	default y
+
+config MBEDTLS_ENTROPY_C
+	bool
+	default y
+
 config MBEDTLS_CIPHER_MODE_CBC
 	bool
 	default n
@@ -109,5 +117,56 @@ config MBEDTLS_HEAP_SIZE
 config OPENTHREAD_PING_SENDER
 	bool
 	default y
+
+config MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
+	bool
+	default n
+
+if OPENTHREAD_THREAD_VERSION_1_2
+
+# Thread 1.2 dependencies
+config NRF_802154_ENCRYPTION
+	bool
+	default n if CHIP
+	default y
+
+config IEEE802154_2015
+	bool
+	default y
+
+config NET_PKT_TXTIME
+	bool
+	default y
+
+config NET_PKT_TIMESTAMP
+	bool
+	default y
+
+config OPENTHREAD_MAC_SOFTWARE_TX_SECURITY_ENABLE
+	bool
+	default y if CHIP
+	default n
+
+if OPENTHREAD_CSL_RECEIVER
+
+config IEEE802154_CSL_ENDPOINT
+	bool
+	default y
+
+config OPENTHREAD_CSL_RECEIVE_TIME_AHEAD
+	int
+	default 3000
+
+config OPENTHREAD_CSL_MIN_RECEIVE_ON
+	int
+	default 300
+
+config OPENTHREAD_CUSTOM_PARAMETERS
+	string
+	default "OPENTHREAD_CONFIG_PLATFORM_CSL_UNCERT=5"
+
+endif
+
+endif
 
 endif

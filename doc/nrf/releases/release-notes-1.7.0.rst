@@ -137,7 +137,7 @@ nRF9160
 
 * Deprecated:
 
-  * :ref:`asset_tracker` has been deprecated in favor of :ref:`asset_tracker_v2`.
+  * nRF9160: Asset Tracker has been deprecated in favor of :ref:`asset_tracker_v2`.
   * :ref:`at_notif_readme` library has been deprecated in favor of the :ref:`at_monitor_readme` library.
   * :ref:`at_cmd_readme` library has been deprecated in favor of Modem library's native AT interface.
   * :ref:`gps_api` driver has been deprecated in favor of the :ref:`nrfxlib:gnss_interface`.
@@ -343,8 +343,8 @@ Pelion
 ------
 
 * Updated Pelion Device Management Client library version to 4.10.0.
-* Switched to using :ref:`caf_power_manager` and :ref:`caf_net_state` in :ref:`pelion_client`.
-* Updated the :ref:`application documentation <pelion_client>` with a step that requires downloading Pelion development tools.
+* Switched to using :ref:`caf_power_manager` and :ref:`caf_net_state` in the nRF Pelion Client application.
+* Updated the nRF Pelion Client application documentation with a step that requires downloading Pelion development tools.
 
 Profiler
 --------

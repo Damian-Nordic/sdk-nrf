@@ -17,7 +17,7 @@ ZEPHYR_BASE = utils.get_projdir("zephyr")
 # General configuration --------------------------------------------------------
 
 project = "MCUboot"
-copyright = "2019-2021"
+copyright = "2019-2022, Nordic Semiconductor"
 version = release = "1.7.99"
 
 sys.path.insert(0, str(ZEPHYR_BASE / "doc" / "_extensions"))
@@ -57,7 +57,18 @@ if kconfig_mapping:
 
 external_content_contents = [
     (NRF_BASE / "doc" / "mcuboot", "*.rst"),
-    (MCUBOOT_BASE / "docs", "*.md"),
+    (MCUBOOT_BASE / "docs", "release-notes.md"),
+    (MCUBOOT_BASE / "docs", "design.md"),
+    (MCUBOOT_BASE / "docs", "encrypted_images.md"),
+    (MCUBOOT_BASE / "docs", "imgtool.md"),
+    (MCUBOOT_BASE / "docs", "ecdsa.md"),
+    (MCUBOOT_BASE / "docs", "readme-zephyr.md"),
+    (MCUBOOT_BASE / "docs", "testplan-mynewt.md"),
+    (MCUBOOT_BASE / "docs", "testplan-zephyr.md"),
+    (MCUBOOT_BASE / "docs", "release.md"),
+    (MCUBOOT_BASE / "docs", "SECURITY.md"),
+    (MCUBOOT_BASE / "docs", "signed_images.md"),
+    (MCUBOOT_BASE / "docs", "SubmittingPatches.md"),
 ]
 
 # Options for ncs_cache --------------------------------------------------------

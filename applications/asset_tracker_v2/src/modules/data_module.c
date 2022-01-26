@@ -697,6 +697,12 @@ static int agps_request_encode(struct nrf_modem_gnss_agps_data_frame *incoming_r
 	cloud_agps_request.area = modem_info.network.area_code.value;
 	cloud_agps_request.request = *incoming_request;
 	cloud_agps_request.queued = true;
+#if defined(CONFIG_GNSS_MODULE_AGPS_FILTERED)
+	cloud_agps_request.filtered = CONFIG_GNSS_MODULE_AGPS_FILTERED;
+#endif
+#if defined(CONFIG_GNSS_MODULE_ELEVATION_MASK)
+	cloud_agps_request.mask_angle = CONFIG_GNSS_MODULE_ELEVATION_MASK;
+#endif
 
 	err = cloud_codec_encode_agps_request(&codec, &cloud_agps_request);
 	switch (err) {
@@ -973,30 +979,47 @@ static void agps_request_handle(struct nrf_modem_gnss_agps_data_frame *incoming_
 {
 	int err;
 
+#if defined(CONFIG_NRF_CLOUD_AGPS)
+	struct nrf_modem_gnss_agps_data_frame request;
+
+#if defined(CONFIG_NRF_CLOUD_PGPS)
+	request.sv_mask_ephe = 0;
+	request.sv_mask_alm = 0;
+#else
+	request.sv_mask_ephe = incoming_request->sv_mask_ephe;
+	request.sv_mask_alm = incoming_request->sv_mask_alm;
+#endif
+	request.data_flags = incoming_request->data_flags;
+
+#if defined(CONFIG_NRF_CLOUD_MQTT)
 	/* If CONFIG_NRF_CLOUD_MQTT is enabled, the nRF Cloud MQTT transport library will be used
 	 * to send the request.
 	 */
-#if defined(CONFIG_NRF_CLOUD_AGPS) && defined(CONFIG_NRF_CLOUD_MQTT)
-	err = nrf_cloud_agps_request(incoming_request);
+	err = nrf_cloud_agps_request(&request);
 	if (err) {
 		LOG_WRN("Failed to request A-GPS data, error: %d", err);
 		LOG_WRN("This is expected to fail if we are not in a connected state");
 	} else {
-		LOG_DBG("A-GPS request sent");
-		return;
+		if (nrf_cloud_agps_request_in_progress()) {
+			LOG_DBG("A-GPS request sent");
+			return;
+		}
+		LOG_DBG("No A-GPS data requested");
+		/* Continue so P-GPS, if enabled, can be requested. */
 	}
-#elif defined(CONFIG_NRF_CLOUD_AGPS) && !defined(CONFIG_NRF_CLOUD_MQTT)
+#else
 	/* If the nRF Cloud MQTT transport library is not enabled, we will have to create an
 	 * A-GPS request and send out an event containing the request for the cloud module to pick
 	 * up and send to the cloud that is currently used.
 	 */
-	err = agps_request_encode(incoming_request);
+	err = agps_request_encode(&request);
 	if (err) {
 		LOG_WRN("Failed to request A-GPS data, error: %d", err);
 	} else {
 		LOG_DBG("A-GPS request sent");
 		return;
 	}
+#endif
 #endif
 
 #if defined(CONFIG_NRF_CLOUD_PGPS)
@@ -1134,10 +1157,6 @@ static void on_all_states(struct data_msg_data *msg)
 	}
 
 	if (IS_EVENT(msg, modem, MODEM_EVT_MODEM_STATIC_DATA_READY)) {
-		modem_stat.nw_lte_m = msg->module.modem.data.modem_static.nw_mode_ltem;
-		modem_stat.nw_nb_iot = msg->module.modem.data.modem_static.nw_mode_nbiot;
-		modem_stat.nw_gnss = msg->module.modem.data.modem_static.nw_mode_gnss;
-		modem_stat.bnd = msg->module.modem.data.modem_static.band;
 		modem_stat.ts = msg->module.modem.data.modem_static.timestamp;
 		modem_stat.queued = true;
 
@@ -1153,10 +1172,14 @@ static void on_all_states(struct data_msg_data *msg)
 		BUILD_ASSERT(sizeof(modem_stat.iccid) >=
 			     sizeof(msg->module.modem.data.modem_static.iccid));
 
+		BUILD_ASSERT(sizeof(modem_stat.imei) >=
+			     sizeof(msg->module.modem.data.modem_static.imei));
+
 		strcpy(modem_stat.appv, msg->module.modem.data.modem_static.app_version);
 		strcpy(modem_stat.brdv, msg->module.modem.data.modem_static.board_version);
 		strcpy(modem_stat.fw, msg->module.modem.data.modem_static.modem_fw);
 		strcpy(modem_stat.iccid, msg->module.modem.data.modem_static.iccid);
+		strcpy(modem_stat.imei, msg->module.modem.data.modem_static.imei);
 
 		requested_data_status_set(APP_DATA_MODEM_STATIC);
 	}
@@ -1168,11 +1191,15 @@ static void on_all_states(struct data_msg_data *msg)
 	if (IS_EVENT(msg, modem, MODEM_EVT_MODEM_DYNAMIC_DATA_READY)) {
 		struct cloud_data_modem_dynamic new_modem_data = {
 			.area = msg->module.modem.data.modem_dynamic.area_code,
+			.nw_mode = msg->module.modem.data.modem_dynamic.nw_mode,
+			.band = msg->module.modem.data.modem_dynamic.band,
 			.cell = msg->module.modem.data.modem_dynamic.cell_id,
 			.rsrp = msg->module.modem.data.modem_dynamic.rsrp,
 			.ts = msg->module.modem.data.modem_dynamic.timestamp,
 
 			.area_code_fresh = msg->module.modem.data.modem_dynamic.area_code_fresh,
+			.nw_mode_fresh = msg->module.modem.data.modem_dynamic.nw_mode_fresh,
+			.band_fresh = msg->module.modem.data.modem_dynamic.band_fresh,
 			.cell_id_fresh = msg->module.modem.data.modem_dynamic.cell_id_fresh,
 			.rsrp_fresh = msg->module.modem.data.modem_dynamic.rsrp_fresh,
 			.ip_address_fresh = msg->module.modem.data.modem_dynamic.ip_address_fresh,
@@ -1218,8 +1245,9 @@ static void on_all_states(struct data_msg_data *msg)
 
 	if (IS_EVENT(msg, sensor, SENSOR_EVT_ENVIRONMENTAL_DATA_READY)) {
 		struct cloud_data_sensors new_sensor_data = {
-			.temp = msg->module.sensor.data.sensors.temperature,
-			.hum = msg->module.sensor.data.sensors.humidity,
+			.temperature = msg->module.sensor.data.sensors.temperature,
+			.humidity = msg->module.sensor.data.sensors.humidity,
+			.pressure = msg->module.sensor.data.sensors.pressure,
 			.env_ts = msg->module.sensor.data.sensors.timestamp,
 			.queued = true
 		};

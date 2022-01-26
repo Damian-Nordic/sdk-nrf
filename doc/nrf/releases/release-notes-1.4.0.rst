@@ -135,7 +135,7 @@ nRF9160
     * Added a common A-GPS interface for SUPL and nRF Connect for Cloud A-GPS service.
     * Added sending of service information after a successful connection to `nRF Connect for Cloud`_ has been made.
 
-* :ref:`asset_tracker` application:
+* nRF9160: Asset Tracker application:
 
     * Added handling of sensor channel ``get`` commands received from `nRF Connect for Cloud`_.
     * Added event handler for :ref:`lte_lc_readme` events.
@@ -566,7 +566,7 @@ nRF9160
 * :ref:`ug_nrf9160` - updated the :ref:`nrf9160_ug_band_lock` section; also updated with information about certification of different modem firmware versions and added a link to nRF9160 compatibility matrix
 * :ref:`serial_lte_modem` - updated and extended with testing instructions and AT command reference
 * :ref:`lte_sensor_gateway` - updated with information about how to use low power UART for communicating with the controller
-* :ref:`asset_tracker` - added a note about external antenna performance and updated the dependencies section with the listing of modules abstracted using LwM2M carrier OS abstraction layer
+* nRF9160: Asset Tracker - added a note about external antenna performance and updated the dependencies section with the listing of modules abstracted using LwM2M carrier OS abstraction layer
 * :ref:`lwm2m_client` - updated with sections about DTLS support and bootstrap support
 * :ref:`lwm2m_carrier`  - updated the dependencies section with the listing of modules abstracted via LwM2M carrier OS abstraction layer
 * :ref:`mqtt_simple_sample` - updated with configuration and testing sections
@@ -597,7 +597,7 @@ Thread
 
 * :ref:`ug_thread` - updated by reorganizing structure and adding new pages
 
-  * :ref:`ug_thread_configuring` - added as a separate page (was a section of :ref:`ug_thread`); updated with information about :ref:`ug_thread_configuring_basic`, :ref:`ug_thread_configuring_crypto`, :ref:`thread_ug_thread_1_2`, :ref:`thread_ug_feature_sets`
+  * :ref:`ug_thread_configuring` - added as a separate page (was a section of :ref:`ug_thread`); updated with information about :ref:`ug_thread_configuring_basic`, :ref:`ug_thread_configuring_crypto`, :ref:`thread_ug_thread_specification_options`, :ref:`thread_ug_feature_sets`
   * :ref:`ug_thread_intro` - added as a container for conceptual pages about OpenThread
 
     * :ref:`thread_ug_supported_features` - added as a separate page (was a section of :ref:`ug_thread`)

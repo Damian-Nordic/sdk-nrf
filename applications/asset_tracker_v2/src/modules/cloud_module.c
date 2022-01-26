@@ -246,11 +246,21 @@ static void agps_data_handle(const uint8_t *buf, size_t len)
 		LOG_WRN("Unable to process A-GPS data, error: %d", err);
 	} else {
 		LOG_DBG("A-GPS data processed");
-		return;
 	}
 #endif
 
 #if defined(CONFIG_NRF_CLOUD_PGPS)
+#if defined(CONFIG_NRF_CLOUD_AGPS)
+	if (!err) {
+		err = nrf_cloud_pgps_notify_prediction();
+		if (err) {
+			LOG_ERR("Error requesting prediction notification: %d", err);
+		} else {
+			return;
+		}
+	}
+#endif
+
 	LOG_DBG("Process incoming data if P-GPS related");
 
 	err = nrf_cloud_pgps_process(buf, len);
@@ -323,6 +333,32 @@ static void cloud_wrap_event_handler(const struct cloud_wrap_event *const evt)
 		LOG_DBG("CLOUD_WRAP_EVT_PGPS_DATA_RECEIVED");
 		agps_data_handle(evt->data.buf, evt->data.len);
 		break;
+	case CLOUD_WRAP_EVT_USER_ASSOCIATION_REQUEST: {
+		LOG_DBG("CLOUD_WRAP_EVT_USER_ASSOCIATION_REQUEST");
+
+		/* Cancel the reconnection routine upon a user association request. Device is
+		 * awaiting registration to an nRF Cloud and does not need to reconnect
+		 * until this happens.
+		 */
+		k_work_cancel_delayable(&connect_check_work);
+		connect_retries = 0;
+
+		SEND_EVENT(cloud, CLOUD_EVT_USER_ASSOCIATION_REQUEST);
+	};
+		break;
+	case CLOUD_WRAP_EVT_USER_ASSOCIATED: {
+		LOG_DBG("CLOUD_WRAP_EVT_USER_ASSOCIATED");
+
+		/* After user association, the device is disconnected. Reconnect immediately
+		 * to complete the process.
+		 */
+		if (!k_work_delayable_is_pending(&connect_check_work)) {
+			k_work_reschedule(&connect_check_work, K_SECONDS(5));
+		}
+
+		SEND_EVENT(cloud, CLOUD_EVT_USER_ASSOCIATED);
+	};
+		break;
 	case CLOUD_WRAP_EVT_FOTA_DONE: {
 		LOG_DBG("CLOUD_WRAP_EVT_FOTA_DONE");
 		SEND_EVENT(cloud, CLOUD_EVT_FOTA_DONE);
@@ -334,6 +370,7 @@ static void cloud_wrap_event_handler(const struct cloud_wrap_event *const evt)
 		break;
 	case CLOUD_WRAP_EVT_FOTA_START: {
 		LOG_DBG("CLOUD_WRAP_EVT_FOTA_START");
+		SEND_EVENT(cloud, CLOUD_EVT_FOTA_START);
 		break;
 	}
 	case CLOUD_WRAP_EVT_FOTA_ERASE_PENDING:
@@ -342,9 +379,11 @@ static void cloud_wrap_event_handler(const struct cloud_wrap_event *const evt)
 	case CLOUD_WRAP_EVT_FOTA_ERASE_DONE:
 		LOG_DBG("CLOUD_WRAP_EVT_FOTA_ERASE_DONE");
 		break;
-	case CLOUD_WRAP_EVT_FOTA_ERROR:
+	case CLOUD_WRAP_EVT_FOTA_ERROR: {
 		LOG_DBG("CLOUD_WRAP_EVT_FOTA_ERROR");
+		SEND_EVENT(cloud, CLOUD_EVT_FOTA_ERROR);
 		break;
+	}
 	case CLOUD_WRAP_EVT_ERROR: {
 		LOG_DBG("CLOUD_WRAP_EVT_ERROR");
 		SEND_ERROR(cloud, CLOUD_EVT_ERROR, evt->err);
@@ -609,6 +648,10 @@ void pgps_handler(struct nrf_cloud_pgps_event *event)
 			LOG_ERR("Unable to send prediction to modem: %d", err);
 		}
 
+		err = nrf_cloud_pgps_preemptive_updates();
+		if (err) {
+			LOG_ERR("Error requesting updates: %d", err);
+		}
 		break;
 	case PGPS_EVT_REQUEST: {
 		LOG_DBG("PGPS_EVT_REQUEST");

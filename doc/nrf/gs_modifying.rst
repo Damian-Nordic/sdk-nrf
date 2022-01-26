@@ -149,12 +149,6 @@ Hardware-related configuration
 
 The preprocessed devicetree sources are parsed by the :file:`zephyr/scripts/dts/gen_defines.py` script to generate a :file:`devicetree_unfixed.h` header file with preprocessor macros.
 
-.. ncs-include:: guides/build/index.rst
-   :docset: zephyr
-   :dedent: 3
-   :start-after: header with preprocessor macros.
-   :end-before: This file is just for reference.
-
 The :file:`zephyr.dts` file contains the entire hardware-related configuration of the system in the devicetree format.
 The header file contains the same kind of information, but with defines usable by source code.
 
@@ -300,7 +294,7 @@ The child image Kconfig file is named :file:`<child_image>.conf` instead of :fil
 The Devicetree configuration is not affected by the build type.
 
 .. note::
-    For an example of an application that is using build types, see the :ref:`nrf_desktop` application (:ref:`nrf_desktop_requirements_build_types`), the :ref:`nrf_machine_learning_app` application (:ref:`nrf_machine_learning_app_requirements_build_types`), or the :ref:`pelion_client` application (:ref:`pelion_client_reqs_build_types`).
+    For an example of an application that is using build types, see the :ref:`nrf_desktop` application (:ref:`nrf_desktop_requirements_build_types`) or the :ref:`nrf_machine_learning_app` application (:ref:`nrf_machine_learning_app_requirements_build_types`).
 
 Selecting a build type in the VS Code extension
 ===============================================

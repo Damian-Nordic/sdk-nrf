@@ -14,7 +14,7 @@
 #include <string.h>
 #include <logging/log.h>
 #include <nrf_modem_gnss.h>
-#include <modem/at_cmd.h>
+#include <nrf_modem_at.h>
 #ifdef CONFIG_NRF9160_GPS_HANDLE_MODEM_CONFIGURATION
 #include <modem/lte_lc.h>
 #endif
@@ -557,10 +557,19 @@ static int configure_antenna(void)
 	int err = 0;
 
 #if CONFIG_NRF9160_GPS_SET_MAGPIO
-	err = at_cmd_write(CONFIG_NRF9160_GPS_MAGPIO_STRING,
-				NULL, 0, NULL);
+	/* Using format string since the command contains characters
+	 * that need to be escaped.
+	 */
+	err = nrf_modem_at_printf("%s", CONFIG_NRF9160_GPS_MAGPIO_STRING);
 	if (err) {
-		LOG_ERR("Could not configure MAGPIO, error: %d", err);
+		if (err > 0) {
+			LOG_ERR("Could not configure MAGPIO, error_type: %d, error_value: %d",
+				nrf_modem_at_err_type(err),
+				nrf_modem_at_err(err));
+		} else {
+			LOG_ERR("Could not configure MAGPIO, error: %d", err);
+		}
+
 		return err;
 	}
 
@@ -569,10 +578,19 @@ static int configure_antenna(void)
 #endif /* CONFIG_NRF9160_GPS_SET_MAGPIO */
 
 #if CONFIG_NRF9160_GPS_SET_COEX0
-	err = at_cmd_write(CONFIG_NRF9160_GPS_COEX0_STRING,
-				NULL, 0, NULL);
+	/* Using format string since the command contains characters
+	 * that need to be escaped.
+	 */
+	err = nrf_modem_at_printf("%s", CONFIG_NRF9160_GPS_COEX0_STRING);
 	if (err) {
-		LOG_ERR("Could not configure COEX0, error: %d", err);
+		if (err > 0) {
+			LOG_ERR("Could not configure COEX0, error_type: %d, error_value: %d",
+				nrf_modem_at_err_type(err),
+				nrf_modem_at_err(err));
+		} else {
+			LOG_ERR("Could not configure COEX0, error: %d", err);
+		}
+
 		return err;
 	}
 
@@ -763,9 +781,37 @@ static int start(const struct device *dev, struct gps_config *cfg)
 		return -EIO;
 	}
 
-	err = nrf_modem_gnss_use_case_set(drv_data->config.use_case);
+#ifdef CONFIG_NRF_CLOUD_AGPS_ELEVATION_MASK
+	err = nrf_modem_gnss_elevation_threshold_set(CONFIG_NRF_CLOUD_AGPS_ELEVATION_MASK);
+	if (!err) {
+		LOG_DBG("Set elevation threshold to %d", CONFIG_NRF_CLOUD_AGPS_ELEVATION_MASK);
+	} else {
+		LOG_ERR("Failed to set elevation threshold: %d", err);
+	}
+#endif
+
+	uint8_t use_case = drv_data->config.use_case;
+
+	if (IS_ENABLED(CONFIG_NRF_CLOUD_AGPS_FILTERED) &&
+	    (drv_data->config.interval > 1)) {
+		/** when in periodic tracking mode, prevent modem from wasting time
+		 *   downloading missing ephemerides
+		 */
+		use_case |= NRF_MODEM_GNSS_USE_CASE_SCHED_DOWNLOAD_DISABLE;
+		err = nrf_modem_gnss_use_case_set(use_case);
+
+		if (!err) {
+			LOG_DBG("Disabled scheduled GNSS downloads");
+		} else {
+			LOG_DBG("Could not disable scheduled GNSS downloads: %d", err);
+			use_case &= ~NRF_MODEM_GNSS_USE_CASE_SCHED_DOWNLOAD_DISABLE;
+			err = nrf_modem_gnss_use_case_set(use_case);
+		}
+	} else {
+		err = nrf_modem_gnss_use_case_set(use_case);
+	}
 	if (err) {
-		LOG_ERR("Failed to set GPS use case, error: %d", err);
+		LOG_ERR("Failed to configure use case: %d", err);
 		return -EIO;
 	}
 

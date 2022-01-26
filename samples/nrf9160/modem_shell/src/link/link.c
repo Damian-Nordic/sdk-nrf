@@ -17,6 +17,8 @@
 #include <modem/lte_lc.h>
 #include <modem/pdn.h>
 
+#include <dk_buttons_and_leds.h>
+
 #include <nrf_socket.h>
 
 #include "link_settings.h"
@@ -46,6 +48,8 @@ struct pdn_activation_status_info {
 	bool activated;
 	uint8_t cid;
 };
+
+#define REGISTERED_STATUS_LED          DK_LED1
 
 /* Work for getting the modem info that ain't in lte connection ind: */
 static struct k_work registered_work;
@@ -146,6 +150,8 @@ static void link_registered_work(struct k_work *unused)
 	struct pdn_activation_status_info pdn_act_status_arr[CONFIG_PDN_CONTEXTS_MAX];
 
 	ARG_UNUSED(unused);
+
+	dk_set_led_on(REGISTERED_STATUS_LED);
 
 	memset(pdn_act_status_arr, 0,
 	       CONFIG_PDN_CONTEXTS_MAX * sizeof(struct pdn_activation_status_info));
@@ -333,6 +339,8 @@ void link_ind_handler(const struct lte_lc_evt *const evt)
 		    evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ||
 		    evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING) {
 			k_work_submit(&registered_work);
+		} else {
+			dk_set_led_off(REGISTERED_STATUS_LED);
 		}
 		break;
 	case LTE_LC_EVT_CELL_UPDATE:
@@ -408,15 +416,23 @@ static int link_default_pdp_context_auth_set(void)
 	return 0;
 }
 
-static int link_enable_rel14_features(void)
+static int link_enable_disable_rel14_features(bool enable)
 {
 	int ret;
 
-	ret = nrf_modem_at_printf("AT%%REL14FEAT=1,1,1,1,1");
+	if (enable) {
+		ret = nrf_modem_at_printf("AT%%REL14FEAT=1,1,1,1,1");
+	} else {
+		ret = nrf_modem_at_printf("AT%%REL14FEAT=0,0,0,0,0");
+	}
+
 	if (ret < 0) {
-		mosh_warn("Release 14 features AT-command failed, err %d", ret);
+		mosh_warn("Release 14 features %s AT-command failed, err %d",
+			((enable) ? "enable" : "disable"),
+			ret);
 	} else if (ret > 0) {
-		mosh_warn("Release 14 features AT-command error, type %d err %d",
+		mosh_warn("Release 14 features %s AT-command error, type %d err %d",
+			((enable) ? "enable" : "disable"),
 			nrf_modem_at_err_type(ret), nrf_modem_at_err(ret));
 	}
 	return 0;
@@ -557,10 +573,8 @@ int link_func_mode_set(enum lte_lc_func_mode fun, bool rel14_used)
 		return_value = lte_lc_offline();
 		break;
 	case LTE_LC_FUNC_MODE_NORMAL:
-		if (rel14_used) {
-			/* Enable Rel14 features before going to normal mode */
-			link_enable_rel14_features();
-		}
+		/* Enable/disable Rel14 features before going to normal mode */
+		link_enable_disable_rel14_features(rel14_used);
 
 		/* (Re)register for PDN lib notifications */
 		link_shell_pdn_events_subscribe();

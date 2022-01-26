@@ -124,7 +124,7 @@ nRF9160
     * Updated configuration options for setting the source of the MQTT client ID (nRF Cloud device ID).
     * Updated nRF Cloud FOTA to use type-validated FOTA download.
 
-  * :ref:`asset_tracker` application:
+  * nRF9160: Asset Tracker application:
 
     * Added optional P-GPS support.
     * Added application-specific option ``CONFIG_PGPS_STORE_LOCATION``.
@@ -384,8 +384,8 @@ Pelion
 ------
 
 * Added the integration of Pelion Device Management library, available as one of the external submodule repositories in the |NCS|.
-  For more information, see :ref:`ug_pelion`.
-* Added the :ref:`pelion_client` application that showcases the usage of Pelion Device Management library.
+  For more information, see Using Pelion with the |NCS|.
+* Added the nRF Pelion Client application that showcases the usage of Pelion Device Management library.
 
 Common Application Framework (CAF)
 ----------------------------------
@@ -602,7 +602,7 @@ Applications and samples
 
 * nRF9160:
 
-   * :ref:`asset_tracker` - Added sections on using nRF Cloud A-GPS or P-GPS, and on using nRF Cloud FOTA.
+   * nRF9160: Asset Tracker - Added sections on using nRF Cloud A-GPS or P-GPS, and on using nRF Cloud FOTA.
    * :ref:`asset_tracker_v2`:
 
       * Added a table showing cloud services and the corresponding cloud-side instances.

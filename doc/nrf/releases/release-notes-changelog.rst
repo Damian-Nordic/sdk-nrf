@@ -22,7 +22,7 @@ The most relevant changes that are present on the main branch of the |NCS|, as c
 Highlights
 **********
 
-* |no_changes_yet_note|
+* Removed support for Pelion DM library.
 
 Known issues
 ************
@@ -54,6 +54,20 @@ Matter
 
 * Added ``EXPERIMENTAL`` select in Kconfig that informs that Matter support is experimental.
 
+Thread
+------
+
+* Changed how Thread 1.2 is enabled, refer to :ref:`thread_ug_thread_specification_options` and :ref:`thread_ug_feature_sets` for more information.
+
+Zigbee
+------
+
+* Updated ZBOSS Zigbee stack to version ``3.11.0.0+5.1.0``.
+  See the :ref:`nrfxlib:zboss_changelog` in the nrfxlib documentation for detailed information.
+* Added development ZBOSS stack library version based on the ZBOSS build v3.10.0.780+v5.1.0.
+  This library version is dedicated for testing ZCL v8 features.
+* Added ZBOSS libraries variant with ZBOSS Traces enabled.
+
 Applications
 ============
 
@@ -63,6 +77,31 @@ nRF9160: Asset Tracker v2
 -------------------------
 
 * Updated the code and documentation to use the acronym GNSS instead of GPS when not referring explicitly to the GPS system.
+* Added support for atmospheric pressure readings retrieved from the BME680 sensor on Thingy:91.
+* Fixed an issue where PSM could be requested from the network even though it was disabled in Kconfig.
+* Added new documentation for Asset Tracker v2 :ref:`asset_tracker_v2_modem_module`.
+* Added support for A-GPS filtered ephemerides.
+* Added new documentation for :ref:`asset_tracker_v2_util_module` and :ref:`api_modules_common`.
+* Updated support for P-GPS preemptive updates and P-GPS coexistence with A-GPS.
+
+nRF9160: Asset Tracker
+----------------------
+
+* The application is removed.
+  Hence, it is recommended to upgrade to the :ref:`asset_tracker_v2` application.
+
+nRF Machine Learning (Edge Impulse)
+-----------------------------------
+
+* Added:
+
+  * Added :kconfig:`CONFIG_ML_APP_SENSOR_EVENT_DESCR` option that globally defines sensor used by the application modules.
+  * Bluetooth LE bonding functionality.
+    The functionality relies on :ref:`caf_ble_bond`.
+
+* Updated:
+
+  * Renamed ``ml_state`` module to ``ml_app_mode`` module.
 
 nRF Desktop
 -----------
@@ -72,10 +111,14 @@ nRF Desktop
   * Possibility to ask for bootloader variant using config channel.
   * Added Kconfig options that allow erasing dongle bond on the gaming mouse using buttons or config channel.
   * Added two states to enable erasing dongle peer: ``STATE_DONGLE_ERASE_PEER`` and ``STATE_DONGLE_ERASE_ADV``.
+  * Added new application specific Kconfig option to enable :ref:`nrf_desktop_ble_bond`.
 
 * Updated:
 
-   * Documentation and diagrams for the Bluetooth LE bond internal module.
+   * Documentation and diagrams for the :ref:`nrf_desktop_ble_bond`.
+   * Moved Fn key related macros to an application specific header file (:file:`configuration/common/fn_key_id.h`).
+   * Config channel no longer uses orphaned sections to store module Id information.
+     Hence, the :kconfig:`CONFIG_LINKER_ORPHAN_SECTION_PLACE` option is no longer required in the config file.
 
 Samples
 =======
@@ -89,6 +132,7 @@ Bluetooth samples
 * Added:
 
   * :ref:`multiple_adv_sets` sample.
+  * :ref:`ble_nrf_dm` sample.
 
 * Updated:
 
@@ -96,6 +140,7 @@ Bluetooth samples
   * :ref:`direct_test_mode` - Added support for front-end module devices that support 2-pin PA/LNA interface with additional support for the Skyworks SKY66114-11 and the Skyworks SKY66403-11.
   * :ref:`peripheral_hids_mouse` - Added a notice about encryption requirement.
   * :ref:`peripheral_hids_keyboard` - Added a notice about encryption requirement.
+  * :ref:`central_and_peripheral_hrs` - Clarified the "Requirements" section and fixed a link in the "Testing" section of the document.
 
 
 nRF9160 samples
@@ -104,6 +149,8 @@ nRF9160 samples
 * :ref:`modem_shell_application` sample:
 
   * Added a new shell command ``cloud`` for establishing an MQTT connection to nRF Cloud.
+  * Removed support for the GPS driver.
+  * The LED 1 on the development kit indicates the LTE registration status.
 
 * :ref:`http_application_update_sample` sample:
 
@@ -113,10 +160,18 @@ nRF9160 samples
 * :ref:`gnss_sample` sample:
 
   * Added support for minimal assistance using factory almanac, time and location.
+  * Added support for TTFF test mode.
 
 * nRF9160: HTTP update samples:
 
   * HTTP update samples now set the modem in the power off mode after the firmware image download completes. This avoids ungraceful disconnects from the network upon pressing the reset button on the kit.
+
+Thread samples
+--------------
+
+* :ref:`ot_cli_sample` sample:
+
+  * Removed `overlay-thread_1_2.conf` as Thread 1.2 is now supported as described in :ref:`thread_ug_thread_specification_options`.
 
 Other samples
 -------------
@@ -149,9 +204,15 @@ Bluetooth libraries and services
 
   * Added units for :c:struct:`bt_rscs_measurement` members.
 
+* :ref:`ble_rpc` library:
+
+  * Fixed the issue related to missing buffer size variables for the user PHY update and the user data length update procedures.
+
 Common Application Framework (CAF)
 ----------------------------------
 
+* Added a simple implementation of the :ref:`caf_ble_bond`.
+  The implementation allows to erase bonds for default Bluetooth local identity.
 * Migrated :ref:`nRF Desktop settings loader <nrf_desktop_settings_loader>` to :ref:`lib_caf` as :ref:`CAF: Settings loader module <caf_settings_loader>`.
 * :ref:`caf_leds`:
 
@@ -163,29 +224,59 @@ Common Application Framework (CAF)
     The array holding module reference objects is explicitly defined in linker script to avoid creating an orphan section.
     ``MODULE_ID`` macro and :c:func:`module_id_get` function now returns module reference from dedicated section instead of module name.
     The module name can not be obtained from reference object directly, a helper function (:c:func:`module_name_get`) should be used instead.
+  * Fixed the NCSDK-13058 known issue related to directed advertising in CAF.
+  * Fixed NULL dereferencing in :ref:`caf_sensor_manager` during :c:struct:`wake_up_event` handling for sensors that do not support trigger.
 
 Bootloader libraries
 --------------------
 
 * Added a separate section for :ref:`lib_bootloader`.
 
+Libraries for networking
+------------------------
+* :ref:`lib_fota_download` library:
+  * Skipping host name check when connecting to TLS service using just IP address.
+
 Modem libraries
 ---------------
+
+* :ref:`nrf_modem_lib_readme` library:
+
+  * Fixed a bug in the socket offloading component, where the :c:func:`recvfrom` wrapper could do an out-of-bounds copy of the sender's address, when the application is compiled without IPv6 support. In some cases, the out of bounds copy could indefinitely block the :c:func:`send` and other socket API calls.
 
 * :ref:`at_monitor_readme` library:
 
   * Introduced AT_MONITOR_ISR macro to monitor AT notifications in an interrupt service routine.
+  * Removed :c:func:`at_monitor_init` function and :kconfig:`CONFIG_AT_MONITOR_SYS_INIT` option. The library now initializes automatically when enabled.
 
 * :ref:`at_cmd_parser_readme` library:
 
   * Can now parse AT command responses containing the response result, for example, ``OK`` or ``ERROR``.
 
+* :ref:`nrf_modem_lib_readme`:
+
+  * The modem trace handling is moved from :file:`nrf_modem_os.c` to a new file :file:`nrf_modem_lib_trace.c`, which also provides the API for starting a trace session for a given time interval or until a given size of trace data is received.
+
 Event manager
 -------------
+
+* Added:
+
+  * ``EVENT_SUBSCRIBE_FIRST`` subscriber priority.
 
 * Updated:
 
   * Modified the sections used by the event manager. Stopped using orphaned sections. Removed forced alignment for x86. Reworked priorities.
+  * Event manager no longer uses orphaned sections to store information about event types, listeners and subscribers.
+    Hence, the :kconfig:`CONFIG_LINKER_ORPHAN_SECTION_PLACE` option is no longer required in the config file.
+
+Event manager Profiler Tracer
+-----------------------------
+
+* Updated:
+
+  * Event manager Profiler Tracer no longer use orphaned sections to store profiler information.
+    Hence, the :kconfig:`CONFIG_LINKER_ORPHAN_SECTION_PLACE` option is no longer required in the config file.
 
 Libraries for networking
 ------------------------
@@ -198,6 +289,22 @@ Libraries for networking
 
   * Updated the implementation of modem delta upgrades in the DFU target library to use the new socketless interface provided by the :ref:`nrf_modem`.
 
+* :ref:`lib_location` library:
+
+  * Added A-GPS filtered ephemerides support.
+
+* :ref:`lib_nrf_cloud` library:
+
+  * Added A-GPS filtered ephemerides support, with ability to set matching threshold mask angle.
+  * When filtered ephemerides is enabled, A-GPS assistance requests to cloud are limited to no more than once every two hours.
+  * Updated MQTT connection error handling.
+    Now, unacknowledged pings and other errors result in a transition to the disconnected state.
+    This ensures that reconnection can take place.
+
+* :ref:`lib_nrf_cloud_rest` library:
+
+  * Updated to use the :ref:`lib_rest_client` library for REST API calls.
+
 Other libraries
 ---------------
 
@@ -208,6 +315,14 @@ Other libraries
 
   * Removed the :kconfig:`CONFIG_DATE_TIME_IPV6` Kconfig option.
     The library now automatically uses IPv6 for NTP when available.
+
+* :ref:`lib_location` library:
+
+  * Added support for GNSS high accuracy.
+
+* :ref:`lib_ram_pwrdn` library:
+  * Added functions for powering up and down RAM sections for a given address range.
+  * Added experimental functionality to automatically power up and down RAM sections based on the libc heap usage.
 
 Event Manager
 +++++++++++++
@@ -289,12 +404,28 @@ The following list summarizes the most important changes inherited from the upst
 
 * |no_changes_yet_note|
 
+cddl-gen
+========
+
+The `cddl-gen`_ module has been updated from version 0.1.0 to 0.3.0.
+Release notes for 0.3.0 can be found in :file:`ncs/nrf/modules/lib/cddl-gen/RELEASE_NOTES.md`.
+
+The change prompted some changes in the CMake for the module, notably:
+
+* The CMake function ``target_cddl_source()`` was removed.
+* The non-generated source files (:file:`cbor_encode.c` and :file:`cbor_decode.c`) and their accompanying header files are now added to the build when :kconfig:`CONFIG_CDDL_GEN` is enabled.
+
+Also, it prompted the following:
+
+* The code of some libraries using cddl-gen (like :ref:`lib_fmfu_fdev`) has been regenerated.
+* The sdk-nrf integration test has been expanded into three new tests.
+
 Documentation
 =============
 
 In addition to documentation related to the changes listed above, the following documentation has been updated:
 
-* Reorganized the contents of the :ref:´ug_app_dev` section:
+* Reorganized the contents of the :ref:`ug_app_dev` section:
 
   * Added new subpage :ref:`app_optimize` and moved the optimization sections under it.
   * Added new subpage :ref:`ext_components` and moved the sections for using external components or modules under it.
@@ -302,5 +433,11 @@ In addition to documentation related to the changes listed above, the following 
 * Reorganized the contents of the :ref:`protocols` section:
 
   * Reduced the ToC levels of the subpages.
+
+* Reorganized the contents of the :ref:`ug_radio_fem` section:
+
+  * Added new section :ref: `ug_radio_fem_nrf21540_spi_gpio`.
+  * Added new section :ref: `ug_radio_fem_direct_support`.
+  * Added more information about supported protocols and hardware.
 
 .. |no_changes_yet_note| replace:: No changes since the latest |NCS| release.

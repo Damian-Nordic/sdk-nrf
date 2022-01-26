@@ -12,42 +12,42 @@
  */
 
 #include <mpsl_cx_abstract_interface.h>
-#include <mpsl/mpsl_cx_config_thread.h>
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <device.h>
+#include <devicetree.h>
 #include <drivers/gpio.h>
 
 #include "hal/nrf_gpio.h"
 
+#if DT_NODE_HAS_STATUS(DT_PHANDLE(DT_NODELABEL(radio), coex), okay)
+#define CX_NODE DT_PHANDLE(DT_NODELABEL(radio), coex)
+#else
+#define CX_NODE DT_INVALID_NODE
+#error No enabled coex nodes registered in DTS.
+#endif
+
 /* Value from chapter 7. Logic Timing from Thread Radio Coexistence */
 #define REQUEST_TO_GRANT_US 50U
 
-static struct mpsl_cx_thread_interface_config config;
 static mpsl_cx_cb_t callback;
 
-static const struct device *req_dev;
-static const struct device *pri_dev;
-static const struct device *gra_dev;
-static gpio_port_value_t    req_pin_mask;
-static gpio_port_value_t    pri_pin_mask;
-static gpio_port_value_t    gra_pin_mask;
+static const struct gpio_dt_spec req_spec = GPIO_DT_SPEC_GET(CX_NODE, req_gpios);
+static const struct gpio_dt_spec pri_spec = GPIO_DT_SPEC_GET(CX_NODE, pri_dir_gpios);
+static const struct gpio_dt_spec gra_spec = GPIO_DT_SPEC_GET(CX_NODE, grant_gpios);
 static struct gpio_callback grant_cb;
 
 static int32_t grant_pin_is_asserted(bool *is_asserted)
 {
-	int ret;
-	gpio_port_value_t port_val;
+	int ret = gpio_pin_get_dt(&gra_spec);
 
-	ret = gpio_port_get_raw(gra_dev, &port_val);
-
-	if (ret != 0) {
-		return -NRF_EPERM;
+	if (ret < 0) {
+		return ret;
 	}
 
-	*is_asserted = (port_val & gra_pin_mask) ? true : false;
+	*is_asserted = (bool)ret;
 	return 0;
 }
 
@@ -105,53 +105,6 @@ static void gpiote_irq_handler(const struct device *gpiob, struct gpio_callback 
 	}
 }
 
-static int32_t gpio_init(uint8_t pin_no, bool input, const struct device **port,
-		gpio_port_value_t *pin_mask)
-{
-	gpio_flags_t flags;
-	bool use_port_1 = (pin_no > P0_PIN_NUM);
-
-	pin_no = use_port_1 ? pin_no - P0_PIN_NUM : pin_no;
-	*port = device_get_binding(use_port_1 ? "GPIO_1" : "GPIO_0");
-
-	if (*port == NULL) {
-		return -NRF_EINVAL;
-	}
-
-	*pin_mask = 1U << pin_no;
-
-	if (input) {
-		flags = GPIO_INPUT | GPIO_PULL_UP;
-	} else {
-		flags = GPIO_OUTPUT_LOW;
-	}
-
-	gpio_pin_configure(*port, pin_no, flags);
-
-	return 0;
-}
-
-static int32_t gpiote_init(void)
-{
-	int32_t ret;
-	gpio_flags_t flags = GPIO_INT_ENABLE | GPIO_INT_EDGE | GPIO_INT_EDGE_BOTH;
-
-	ret = gpio_init(config.granted_pin, true, &gra_dev, &gra_pin_mask);
-	if (ret < 0) {
-		return ret;
-	}
-
-	ret = gpio_pin_interrupt_configure(gra_dev, config.granted_pin, flags);
-	if (ret < 0) {
-		return ret;
-	}
-
-	gpio_init_callback(&grant_cb, gpiote_irq_handler, gra_pin_mask);
-	gpio_add_callback(gra_dev, &grant_cb);
-
-	return 0;
-}
-
 static int32_t request(const mpsl_cx_request_t *req_params)
 {
 	int ret;
@@ -160,22 +113,16 @@ static int32_t request(const mpsl_cx_request_t *req_params)
 		return -NRF_EINVAL;
 	}
 
-	if (req_params->prio > (UINT8_MAX / 2)) {
-		ret = gpio_port_set_clr_bits_raw(pri_dev, pri_pin_mask, 0);
-	} else {
-		ret = gpio_port_set_clr_bits_raw(pri_dev, 0, pri_pin_mask);
-	}
+	bool pri_active = req_params->prio > (UINT8_MAX / 2);
 
+	ret = gpio_pin_set_dt(&pri_spec, pri_active);
 	if (ret < 0) {
 		return -NRF_EPERM;
 	}
 
-	if (req_params->ops & (MPSL_CX_OP_RX | MPSL_CX_OP_TX)) {
-		ret = gpio_port_set_clr_bits_raw(req_dev, req_pin_mask, 0);
-	} else {
-		ret = gpio_port_set_clr_bits_raw(req_dev, 0, req_pin_mask);
-	}
+	bool req_active = req_params->ops & (MPSL_CX_OP_RX | MPSL_CX_OP_TX);
 
+	ret = gpio_pin_set_dt(&req_spec, req_active);
 	if (ret < 0) {
 		return -NRF_EPERM;
 	}
@@ -187,12 +134,12 @@ static int32_t release(void)
 {
 	int ret;
 
-	ret = gpio_port_set_clr_bits_raw(req_dev, 0, req_pin_mask);
+	ret = gpio_pin_set_dt(&req_spec, 0);
 	if (ret < 0) {
 		return -NRF_EPERM;
 	}
 
-	ret = gpio_port_set_clr_bits_raw(pri_dev, 0, pri_pin_mask);
+	ret = gpio_pin_set_dt(&pri_spec, 0);
 	if (ret < 0) {
 		return -NRF_EPERM;
 	}
@@ -220,33 +167,44 @@ static const mpsl_cx_interface_t m_mpsl_cx_methods = {
 	.p_register_callback   = register_callback,
 };
 
-int32_t mpsl_cx_thread_interface_config_set(
-		struct mpsl_cx_thread_interface_config const * const new_config)
+static int mpsl_cx_init(const struct device *dev)
 {
-	int32_t ret_code;
+	ARG_UNUSED(dev);
 
-	config = *new_config;
+	int32_t ret;
+
 	callback = NULL;
 
-	ret_code = mpsl_cx_interface_set(&m_mpsl_cx_methods);
-	if (ret_code != 0) {
-		return ret_code;
+	ret = mpsl_cx_interface_set(&m_mpsl_cx_methods);
+	if (ret != 0) {
+		return ret;
 	}
 
-	ret_code = gpio_init(config.request_pin, false, &req_dev, &req_pin_mask);
-	if (ret_code != 0) {
-		return ret_code;
+	ret = gpio_pin_configure_dt(&req_spec, GPIO_OUTPUT_INACTIVE);
+	if (ret != 0) {
+		return ret;
 	}
 
-	ret_code = gpio_init(config.priority_pin, false, &pri_dev, &pri_pin_mask);
-	if (ret_code != 0) {
-		return ret_code;
+	ret = gpio_pin_configure_dt(&pri_spec, GPIO_OUTPUT_INACTIVE);
+	if (ret != 0) {
+		return ret;
 	}
 
-	ret_code = gpiote_init();
-	if (ret_code != 0) {
-		return ret_code;
+	ret = gpio_pin_configure_dt(&gra_spec, GPIO_INPUT);
+	if (ret != 0) {
+		return ret;
 	}
+
+	ret = gpio_pin_interrupt_configure_dt(&gra_spec,
+		GPIO_INT_ENABLE | GPIO_INT_EDGE | GPIO_INT_EDGE_BOTH);
+	if (ret != 0) {
+		return ret;
+	}
+
+	gpio_init_callback(&grant_cb, gpiote_irq_handler, BIT(gra_spec.pin));
+	gpio_add_callback(gra_spec.port, &grant_cb);
 
 	return 0;
 }
+
+SYS_INIT(mpsl_cx_init, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);

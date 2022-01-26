@@ -14,13 +14,19 @@
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
 #define PEER_NAME_LEN_MAX 30
-#define TIMEOUT_SYNC_CREATE K_SECONDS(10)
+/* BT Core 5.3 specification allows controller to wait 6 periodic advertising events for
+ * synchronization establishment, hence timeout must be longer than that.
+ */
+#define SYNC_CREATE_TIMEOUT_INTERVAL_NUM 7
+/* Maximum length of advertising data represented in hexadecimal format */
+#define ADV_DATA_HEX_STR_LEN_MAX (BT_GAP_ADV_MAX_EXT_ADV_DATA_LEN * 2 + 1)
 
 static struct bt_le_per_adv_sync *sync;
 static bt_addr_le_t per_addr;
 static volatile bool per_adv_found;
 static bool scan_enabled;
 static uint8_t per_sid;
+static uint32_t sync_create_timeout_ms;
 
 static K_SEM_DEFINE(sem_per_adv, 0, 1);
 static K_SEM_DEFINE(sem_per_sync, 0, 1);
@@ -121,8 +127,8 @@ static void recv_cb(struct bt_le_per_adv_sync *sync,
 		    const struct bt_le_per_adv_sync_recv_info *info,
 		    struct net_buf_simple *buf)
 {
+	static char data_str[ADV_DATA_HEX_STR_LEN_MAX];
 	char le_addr[BT_ADDR_LE_STR_LEN];
-	char data_str[BT_GAP_ADV_MAX_EXT_ADV_DATA_LEN];
 
 	bt_addr_le_to_str(info->addr, le_addr, sizeof(le_addr));
 	bin2hex(buf->data, buf->len, data_str, sizeof(data_str));
@@ -175,6 +181,8 @@ static void scan_recv(const struct bt_le_scan_recv_info *info,
 	       info->sid);
 
 	if (!per_adv_found && info->interval) {
+		sync_create_timeout_ms =
+			adv_interval_to_ms(info->interval) * SYNC_CREATE_TIMEOUT_INTERVAL_NUM;
 		per_adv_found = true;
 		per_sid = info->sid;
 		bt_addr_le_copy(&per_addr, info->addr);
@@ -228,12 +236,12 @@ static void enable_cte_rx(void)
 	const struct bt_df_per_adv_sync_cte_rx_param cte_rx_params = {
 		.max_cte_count = 5,
 #if defined(CONFIG_BT_CTLR_DF_ANT_SWITCH_RX)
-		.cte_type = BT_DF_CTE_TYPE_ALL,
+		.cte_types = BT_DF_CTE_TYPE_ALL,
 		.slot_durations = 0x2,
 		.num_ant_ids = ARRAY_SIZE(ant_patterns),
 		.ant_ids = ant_patterns,
 #else
-		.cte_type = BT_DF_CTE_TYPE_AOD_1US | BT_DF_CTE_TYPE_AOD_2US,
+		.cte_types = BT_DF_CTE_TYPE_AOD_1US | BT_DF_CTE_TYPE_AOD_2US,
 #endif /* CONFIG_BT_CTLR_DF_ANT_SWITCH_RX */
 	};
 
@@ -332,7 +340,7 @@ void main(void)
 		create_sync();
 
 		printk("Waiting for periodic sync...\n");
-		err = k_sem_take(&sem_per_sync, TIMEOUT_SYNC_CREATE);
+		err = k_sem_take(&sem_per_sync, K_MSEC(sync_create_timeout_ms));
 		if (err) {
 			printk("failed (err %d)\n", err);
 			err = delete_sync();

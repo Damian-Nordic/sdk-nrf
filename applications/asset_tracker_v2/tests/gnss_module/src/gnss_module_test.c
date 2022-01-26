@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <mock_modules_common.h>
 #include <mock_event_manager.h>
+#include <mock_event_manager_priv.h>
 #include <mock_date_time.h>
 #include <mock_nrf_modem_at.h>
 #include <mock_nrf_modem_gnss.h>
@@ -250,8 +251,10 @@ static void setup_gnss_module_in_init_state(void)
 		.supports_shutdown = true,
 	};
 
-	__wrap_nrf_modem_at_printf_ExpectAndReturn(CONFIG_GNSS_MODULE_AT_MAGPIO, 0);
-	__wrap_nrf_modem_at_printf_ExpectAndReturn(CONFIG_GNSS_MODULE_AT_COEX0, 0);
+	/* AT%XMAGPIO and AT%XCOEX0 AT commands for LNA configuration. */
+	__wrap_nrf_modem_at_printf_ExpectAnyArgsAndReturn(0);
+	__wrap_nrf_modem_at_printf_ExpectAnyArgsAndReturn(0);
+
 	__wrap_nrf_modem_gnss_event_handler_set_AddCallback(
 		&nrf_modem_gnss_event_handler_set_callback);
 	__wrap_nrf_modem_gnss_event_handler_set_ExpectAnyArgsAndReturn(0);

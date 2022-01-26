@@ -38,7 +38,7 @@ static struct k_work_delayable system_off_work;
  * @brief Function that receives events from NFC.
  */
 static void nfc_callback(void *context,
-			 enum nfc_t2t_event event,
+			 nfc_t2t_event_t event,
 			 const uint8_t *data,
 			 size_t data_length)
 {
@@ -137,7 +137,7 @@ static void system_off(struct k_work *work)
 	/* Before we disabled entry to deep sleep. Here we need to override
 	 * that, then force a sleep so that the deep sleep takes effect.
 	 */
-	pm_power_state_force((struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
+	pm_power_state_force(0, (struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
 
 	dk_set_led_off(SYSTEM_ON_LED);
 

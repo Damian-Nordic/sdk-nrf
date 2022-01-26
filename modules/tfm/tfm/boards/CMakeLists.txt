@@ -25,7 +25,7 @@ target_include_directories(platform_region_defs INTERFACE ${partition_includes})
 
 target_compile_definitions(platform_s
   PRIVATE
-  $<$<BOOL:${PLATFORM_DUMMY_CRYPTO_KEYS}>:PLATFORM_DUMMY_CRYPTO_KEYS>
+  $<$<BOOL:${PLATFORM_DEFAULT_CRYPTO_KEYS}>:PLATFORM_DEFAULT_CRYPTO_KEYS>
   )
 
 target_include_directories(platform_s
@@ -35,12 +35,12 @@ target_include_directories(platform_s
 
 target_sources(platform_s
   PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR}/common/plat_init.c
+  ${CMAKE_CURRENT_LIST_DIR}/common/tfm_hal_platform.c
   )
 
 if (${TFM_PARTITION_CRYPTO}
       AND (NOT ${CRYPTO_KEY_DERIVATION_MODULE_DISABLED})
-      AND (NOT ${PLATFORM_DUMMY_CRYPTO_KEYS}))
+      AND (NOT ${PLATFORM_DEFAULT_CRYPTO_KEYS}))
   target_sources(platform_s
     PRIVATE
       ${NRF_DIR}/lib/hw_unique_key/hw_unique_key.c
@@ -49,7 +49,11 @@ if (${TFM_PARTITION_CRYPTO}
   )
 endif()
 
-target_link_libraries(platform_s PRIVATE platform_cc3xx)
+if (${TFM_PARTITION_CRYPTO})
+  target_link_libraries(platform_s PRIVATE platform_cc3xx)
+  target_link_libraries(platform_s PRIVATE crypto_service_mbedtls)
+endif()
+
 target_compile_definitions(platform_s PUBLIC CONFIG_HW_UNIQUE_KEY CONFIG_HW_UNIQUE_KEY_RANDOM)
 
 target_include_directories(platform_ns PUBLIC ${board_includes})

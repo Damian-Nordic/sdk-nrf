@@ -40,6 +40,7 @@ Each location method has its own implementation for the location retrieval:
      precedence as the transport method of GNSS assistance data.
    * Note that acquiring GNSS fix only starts when LTE connection, more specifically Radio Resource Control (RRC) connection, is idle.
      Also, if A-GPS is not used and Power Saving Mode (PSM) is enabled, Location library will wait for the modem to enter PSM.
+   * Selectable location accuracy (low/normal/high).
 * Cellular positioning
    * :ref:`lte_lc_readme` for getting visible cellular base stations.
    * :ref:`lib_multicell_location` for sending cell information to the selected location service and getting the calculated location back to the device.
@@ -114,6 +115,11 @@ The following options control the use of GNSS assistance data:
 * :kconfig:`CONFIG_LOCATION_METHOD_GNSS_AGPS_EXTERNAL` - Enables A-GPS data retrieval from an external source which the application implements separately. If enabled, Location library throws event :c:enum:`LOCATION_EVT_GNSS_ASSISTANCE_REQUEST` when assistance is needed. Once application has obtained the assistance data it should call :c:func:`location_agps_data_process` function to feed it into Location library.
 * :kconfig:`CONFIG_NRF_CLOUD_AGPS` - Enables A-GPS data retrieval from `nRF Cloud`_.
 * :kconfig:`CONFIG_NRF_CLOUD_PGPS` - Enables P-GPS data retrieval from `nRF Cloud`_.
+* :kconfig:`CONFIG_NRF_CLOUD_AGPS_FILTERED` - Reduces assistance size by only downloading ephemerides for visible satellites.
+
+The following option is useful when setting :kconfig:`CONFIG_NRF_CLOUD_AGPS_FILTERED`:
+
+* :kconfig:`CONFIG_NRF_CLOUD_AGPS_ELEVATION_MASK` - Sets elevation threshold angle.
 
 The following options control the transport method used with `nRF Cloud`_:
 

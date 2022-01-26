@@ -14,6 +14,7 @@
 #include <kernel.h>
 #include <soc.h>
 #include <sys/byteorder.h>
+#include <sys/util.h>
 #include <stdbool.h>
 #include <sys/__assert.h>
 
@@ -112,10 +113,13 @@ BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_PERIPHERAL) ||
 	#define SDC_PERIODIC_ADV_SYNC_COUNT CONFIG_BT_PER_ADV_SYNC_MAX
 	#define SDC_PERIODIC_SYNC_MEM_SIZE \
 		(SDC_PERIODIC_ADV_SYNC_COUNT * \
-		 SDC_MEM_PER_PERIODIC_SYNC(SDC_DEFAULT_PERIODIC_SYNC_BUFFER_COUNT))
+		 SDC_MEM_PER_PERIODIC_SYNC(CONFIG_BT_CTLR_SDC_PERIODIC_SYNC_BUFFER_COUNT))
+	#define SDC_PERIODIC_ADV_LIST_MEM_SIZE \
+		SDC_MEM_PERIODIC_ADV_LIST(CONFIG_BT_CTLR_SYNC_PERIODIC_ADV_LIST_SIZE)
 #else
 	#define SDC_PERIODIC_ADV_SYNC_COUNT 0
 	#define SDC_PERIODIC_SYNC_MEM_SIZE 0
+	#define SDC_PERIODIC_ADV_LIST_MEM_SIZE 0
 #endif
 
 #if defined(CONFIG_BT_OBSERVER)
@@ -159,6 +163,7 @@ BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_PERIPHERAL) ||
 		       SDC_ADV_SET_MEM_SIZE + \
 		       SDC_PERIODIC_ADV_MEM_SIZE + \
 		       SDC_PERIODIC_SYNC_MEM_SIZE + \
+		       SDC_PERIODIC_ADV_LIST_MEM_SIZE + \
 		       (SDC_SCAN_BUF_SIZE))
 
 static uint8_t sdc_mempool[MEMPOOL_SIZE];
@@ -401,7 +406,12 @@ static void recv_thread(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
 
+#if defined(CONFIG_BT_BUF_EVT_DISCARDABLE_COUNT)
+	static uint8_t hci_buffer[MAX(BT_BUF_RX_SIZE,
+				      BT_BUF_EVT_SIZE(CONFIG_BT_BUF_EVT_DISCARDABLE_SIZE))];
+#else
 	static uint8_t hci_buffer[BT_BUF_RX_SIZE];
+#endif
 
 	bool received_evt = false;
 	bool received_data = false;
@@ -643,6 +653,24 @@ static int configure_memory_usage(void)
 		required_memory =
 		sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG,
 			    SDC_CFG_TYPE_PERIODIC_SYNC_COUNT,
+			    &cfg);
+		if (required_memory < 0) {
+			return required_memory;
+		}
+
+		cfg.periodic_sync_buffer_cfg.count = CONFIG_BT_CTLR_SDC_PERIODIC_SYNC_BUFFER_COUNT;
+		required_memory =
+		sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG,
+			    SDC_CFG_TYPE_PERIODIC_SYNC_BUFFER_CFG,
+			    &cfg);
+		if (required_memory < 0) {
+			return required_memory;
+		}
+
+		cfg.periodic_adv_list_size = CONFIG_BT_CTLR_SYNC_PERIODIC_ADV_LIST_SIZE;
+		required_memory =
+		sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG,
+			    SDC_CFG_TYPE_PERIODIC_ADV_LIST_SIZE,
 			    &cfg);
 		if (required_memory < 0) {
 			return required_memory;

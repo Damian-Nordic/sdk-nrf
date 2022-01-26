@@ -66,10 +66,17 @@ Complete the following steps to prepare for the certification tests:
 
    The :ref:`ot_cli_sample` sample is used as a base, modified with the :file:`harness/overlay-cert.conf` overlay file.
 
-   .. code-block::
+   * If building on the command line, use the following command:
 
-         cd ncs/nrf/samples/openthread/cli/
-         west build -b nrf52840dk_nrf52840 -- -DOVERLAY_CONFIG=harness/overlay-cert.conf -DCONFIG_OPENTHREAD_LIBRARY_1_1=y
+     .. code-block::
+
+        cd ncs/nrf/samples/openthread/cli/
+        west build -b nrf52840dk_nrf52840 -- -DOVERLAY_CONFIG=harness/overlay-cert.conf -DCONFIG_OPENTHREAD_LIBRARY_1_1=y
+
+   * If building using Visual Studio Code, you must first `create the application <Creating an application_>`_ using the CLI sample, and then `build the application <Building an application_>`_.
+     Select the :file:`harness/overlay-cert.conf` overlay file in the :guilabel:`Kconfig fragment` drop-down menu and add ``CONFIG_OPENTHREAD_LIBRARY_1_1=y`` to the :guilabel:`Additional CMake arguments` text field.
+
+     If the overlay file is not visible in the drop-down menu, navigate to :file:`ncs/nrf/samples/openthread/cli/harness/` and copy the :file:`overlay-cert.conf` file to :file:`ncs/nrf/samples/openthread/cli/` and try again.
 
    .. note::
       The configuration option selects the precompiled OpenThread libraries.
@@ -77,11 +84,39 @@ Complete the following steps to prepare for the certification tests:
 
 #. Prepare Thread Test Harness.
 
-   a. Copy the provided :file:`ncs/nrf/samples/openthread/cli/harness/nRF_Connect_SDK.py` file into :file:`C:\\GRL\\Thread1.1\\Thread_Harness\\THCI\\`.
+   a. Copy the provided :file:`ncs/modules/lib/openthread/tools/harness-thci/OpenThread.py` file into :file:`C:\\GRL\\Thread1.1\\Thread_Harness\\THCI\\nRF_Connect_SDK.py`.
 
    b. Copy the provided :file:`ncs/nrf/samples/openthread/cli/harness/nRF_Connect_SDK.jpg` file into :file:`C:\\GRL\\Thread1.1\\Web\\images\\`.
 
-   c. Edit :file:`C:\\GRL\\Thread1.1\\Web\\data\\deviceInputFields.xml` and prepend the following code:
+   c. Edit :file:`C:\\GRL\\Thread1.1\\Thread_Harness\\THCI\\nRF_Connect_SDK.py` as follows:
+
+      .. code-block:: python
+
+            >> Thread Host Controller Interface
+            >> Device : OpenThread THCI
+            >> Class : OpenThread
+
+      to
+
+      .. code-block:: python
+
+            >> Thread Host Controller Interface
+            >> Device : nRF_Connect_SDK THCI
+            >> Class : nRF_Connect_SDK
+
+      and
+
+      .. code-block:: python
+
+         class OpenThread(OpenThreadTHCI, IThci):
+
+      to
+
+      .. code-block:: python
+
+         class nRF_Connect_SDK(OpenThreadTHCI, IThci):
+
+   d. Edit :file:`C:\\GRL\\Thread1.1\\Web\\data\\deviceInputFields.xml` and prepend the following code:
 
       .. code-block::
 

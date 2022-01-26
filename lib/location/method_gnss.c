@@ -92,6 +92,8 @@ static struct k_work method_gnss_agps_ext_work;
 static void method_gnss_agps_ext_work_fn(struct k_work *item);
 #endif
 
+static int fixes_remaining;
+
 #if defined(CONFIG_NRF_CLOUD_PGPS)
 static void method_gnss_manage_pgps(struct k_work *work)
 {
@@ -198,7 +200,7 @@ static void method_gnss_agps_request_work_fn(struct k_work *item)
 	struct nrf_cloud_rest_context rest_ctx = {
 		.connect_socket = -1,
 		.keep_alive = false,
-		.timeout_ms = CONFIG_NRF_CLOUD_REST_RECV_TIMEOUT * MSEC_PER_SEC,
+		.timeout_ms = NRF_CLOUD_REST_TIMEOUT_NONE,
 		.rx_buf = rest_api_recv_buf,
 		.rx_buf_len = sizeof(rest_api_recv_buf),
 		.fragment_size = 0
@@ -263,7 +265,7 @@ static void method_gnss_pgps_request_work_fn(struct k_work *item)
 	struct nrf_cloud_rest_context rest_ctx = {
 		.connect_socket = -1,
 		.keep_alive = false,
-		.timeout_ms = CONFIG_NRF_CLOUD_REST_RECV_TIMEOUT * MSEC_PER_SEC,
+		.timeout_ms = NRF_CLOUD_REST_TIMEOUT_NONE,
 		.rx_buf = rest_api_recv_buf,
 		.rx_buf_len = sizeof(rest_api_recv_buf),
 		.fragment_size = 0
@@ -582,6 +584,8 @@ static void method_gnss_pvt_work_fn(struct k_work *item)
 	 * in memory and it is not overwritten in case we get an invalid fix.
 	 */
 	if (pvt_data.flags & NRF_MODEM_GNSS_PVT_FLAG_FIX_VALID) {
+		fixes_remaining--;
+
 		location_result.method = LOCATION_METHOD_GNSS;
 		location_result.latitude = pvt_data.latitude;
 		location_result.longitude = pvt_data.longitude;
@@ -595,9 +599,11 @@ static void method_gnss_pvt_work_fn(struct k_work *item)
 		location_result.datetime.second = pvt_data.datetime.seconds;
 		location_result.datetime.ms = pvt_data.datetime.ms;
 
-		/* We are done, stop GNSS and publish the fix. */
-		method_gnss_cancel();
-		location_core_event_cb(&location_result);
+		if (fixes_remaining <= 0) {
+			/* We are done, stop GNSS and publish the fix. */
+			method_gnss_cancel();
+			location_core_event_cb(&location_result);
+		}
 	}
 }
 
@@ -623,20 +629,29 @@ static void method_gnss_positioning_work_fn(struct k_work *work)
 	/* Configure GNSS to continuous tracking mode */
 	err = nrf_modem_gnss_fix_interval_set(1);
 
-	uint8_t use_case;
+#if defined(CONFIG_NRF_CLOUD_AGPS_ELEVATION_MASK)
+	err |= nrf_modem_gnss_elevation_threshold_set(CONFIG_NRF_CLOUD_AGPS_ELEVATION_MASK);
+#endif
+	/* By default we take the first fix. */
+	fixes_remaining = 1;
+
+	uint8_t use_case = NRF_MODEM_GNSS_USE_CASE_MULTIPLE_HOT_START;
 
 	switch (gnss_config.accuracy) {
 	case LOCATION_ACCURACY_LOW:
-		use_case = NRF_MODEM_GNSS_USE_CASE_MULTIPLE_HOT_START |
-			   NRF_MODEM_GNSS_USE_CASE_LOW_ACCURACY;
-		err |= nrf_modem_gnss_use_case_set(use_case);
+		use_case |= NRF_MODEM_GNSS_USE_CASE_LOW_ACCURACY;
 		break;
 
 	case LOCATION_ACCURACY_NORMAL:
-		use_case = NRF_MODEM_GNSS_USE_CASE_MULTIPLE_HOT_START;
-		err |= nrf_modem_gnss_use_case_set(use_case);
+		break;
+
+	case LOCATION_ACCURACY_HIGH:
+		/* In high accuracy mode, use the configured fix count. */
+		fixes_remaining = gnss_config.num_consecutive_fixes;
 		break;
 	}
+
+	err |= nrf_modem_gnss_use_case_set(use_case);
 
 	if (err) {
 		LOG_ERR("Failed to configure GNSS");

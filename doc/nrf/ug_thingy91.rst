@@ -49,22 +49,21 @@ Firmware
 
 The firmware of Thingy:91 has been developed using the |NCS|.
 It is open source, and can be modified according to specific needs.
-The :ref:`asset_tracker` application firmware, which is preprogrammed in the Thingy:91, enables the device to use the environment sensors and provides an option of tracking the device using GNSS.
+The :ref:`asset_tracker_v2` application firmware, enables the device to use the environment sensors and tracking the device using GNSS.
 
 The data, along with information about the device, is transmitted to Nordic Semiconductor's cloud solution, `nRF Cloud`_, where it can be visualized.
-See :ref:`asset_tracker` for more information on the asset tracker application.
+See :ref:`asset_tracker_v2` for more information on the asset tracker application.
 
 Operating modes
 ===============
 
-Thingy:91 contains RGB indicator LEDs, which indicate the operating state of the device as described in :ref:`operating states of Thingy:91<thingy91_operating_states>`.
+Thingy:91 contains RGB indicator LEDs, which indicate the operating state of the device as described in the :ref:`LED indication <led_indication>` section of the :ref:`asset_tracker_v2_ui_module`.
 
 GNSS
 ====
 
 Thingy:91 has a GNSS receiver, which, if activated, allows the device to be located globally using GNSS signals.
-To activate GNSS, long-press the SW3 button.
-See :ref:`Button SW3 on Thingy:91<asset_tracker_user_interface>` for information.
+In :ref:`asset_tracker_v2`, GNSS is activated by default.
 
 LTE Band Lock
 =============
@@ -119,7 +118,7 @@ Quick programming of precompiled firmware images
 When you have the precompiled firmware images ready, you can directly program the images onto the Thingy:91 using the `nRF Connect Programmer`_ app, which is available in `nRF Connect for Desktop`_.
 
 In this method, the Thingy:91 is connected directly to your PC through USB.
-This method makes use of the :doc:`mcuboot:index` feature and the inbuilt serial recovery mode of Thingy:91.
+This method makes use of the :doc:`mcuboot:index-ncs` feature and the inbuilt serial recovery mode of Thingy:91.
 You can program either the nRF9160 SiP or the nRF52840 SoC component on the Thingy:91.
 
 Alternatively, you can use an external debug probe such as nRF9160 DK or any J-Link device supporting ARM Cortex-M33 to program applications on a Thingy:91.
@@ -271,7 +270,7 @@ To build and program the source code from the command line, complete the followi
 
 1. Open a terminal window.
 #. Go to the specific sample or application directory.
-   For example, the folder path is ``ncs/nrf/applications/asset_tracker`` when building the source code for the :ref:`asset_tracker` application on the nRF9160 SiP component and ``ncs/nrf/applications/connectivity_bridge`` when building the source code for the :ref:`connectivity_bridge` application on the nRF52840 SoC component.
+   For example, the folder path is ``ncs/nrf/applications/asset_tracker_v2`` when building the source code for the :ref:`asset_tracker_v2` application on the nRF9160 SiP component and ``ncs/nrf/applications/connectivity_bridge`` when building the source code for the :ref:`connectivity_bridge` application on the nRF52840 SoC component.
 
 #. Make sure that you have the required version of the |NCS| repository by pulling the |NCS| repository, `sdk-nrf`_ on GitHub using the procedures described in :ref:`dm-wf-get-ncs` and :ref:`dm-wf-update-ncs`.
 

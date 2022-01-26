@@ -129,7 +129,7 @@ nRF9160
   * Added delay to the reboot procedure, to allow to send a reply to the server.
   * Added queue mode support.
 
-* :ref:`asset_tracker` application:
+* nRF9160: Asset Tracker application:
 
   * Improved stability.
   * Various bugfixes.
@@ -355,7 +355,7 @@ NFC
 Immutable bootloader
 --------------------
 
-* Exposed :c:func:`fw_info_ext_api_provide` as an :ref:`external API <doc_fw_info_ext_api>`, so that :doc:`mcuboot:index` can use it to provide external APIs from the :ref:`bootloader` to its images.
+* Exposed :c:func:`fw_info_ext_api_provide` as an :ref:`external API <doc_fw_info_ext_api>`, so that :doc:`mcuboot:index-ncs` can use it to provide external APIs from the :ref:`bootloader` to its images.
   This means that requesting external APIs in applications works even if MCUboot is included.
 * Fixed a bug so that the :ref:`bootloader` works with nRF5340 SPU flash regions.
 * Added a :ref:`doc_bl_storage` library:
@@ -455,7 +455,7 @@ Known issues
 nRF9160
 =======
 
-* The :ref:`asset_tracker` application prints warnings and error messages during successful FOTA. (NCSDK-5574)
+* The nRF9160: Asset Tracker application prints warnings and error messages during successful FOTA. (NCSDK-5574)
 * The :ref:`lte_sensor_gateway` sample crashes when Thingy:52 is flipped. (NCSDK-5666)
 
 From v1.2.0
@@ -463,7 +463,7 @@ From v1.2.0
 
 * The :c:func:`nrf_send` function in the BSD library might be blocking for several minutes, even if the socket is configured for non-blocking operation.
   The behavior depends on the cellular network connection.
-* The :ref:`asset_tracker` sample might show up to 2.5 mA current consumption in idle mode with ``CONFIG_POWER_OPTIMIZATION_ENABLE=y``.
+* The nRF9160: Asset Tracker sample might show up to 2.5 mA current consumption in idle mode with ``CONFIG_POWER_OPTIMIZATION_ENABLE=y``.
 * The SEGGER Control Block cannot be found by automatic search by the RTT Viewer/Logger.
   As a workaround, set the RTT Control Block address to 0 and it will try to search from address 0 and upwards.
   If this does not work, look in the ``builddir/zephyr/zephyr.map`` file to find the address of the ``_SEGGER_RTT`` symbol in the map file and use that as input to the viewer/logger.

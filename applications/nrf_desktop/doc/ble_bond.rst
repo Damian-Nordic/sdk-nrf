@@ -14,6 +14,10 @@ The module controls the following operations:
 * Triggering scanning for new peers (only for nRF Desktop central).
 * Erasing the Bluetooth bonds.
 
+.. note::
+   The nRF Desktop uses the application-specific |ble_bond| implementation.
+   The application does not rely on the :ref:`caf_ble_bond` implementation.
+
 Module events
 *************
 
@@ -179,7 +183,7 @@ Configuration
 *************
 
 The module requires the basic Bluetooth configuration, as described in :ref:`nrf_desktop_bluetooth_guide`.
-The module is enabled for every nRF Desktop device.
+Set the :kconfig:`CONFIG_DESKTOP_BLE_BOND_ENABLE` option to enable the module.
 
 You can control the connected peers using the following methods:
 
@@ -207,7 +211,7 @@ The following peer operations can be enabled:
   This option can be used only by nRF Desktop peripheral.
 * :kconfig:`CONFIG_DESKTOP_BLE_PEER_SELECT` - Select Bluetooth LE peer.
   This option can be used only by nRF Desktop peripheral.
-* ``CONFIG_DESKTOP0_BLE_NEW_PEER_SCAN_REQUEST`` - Scan for new Bluetooth peers.
+* :kconfig:`CONFIG_DESKTOP_BLE_NEW_PEER_SCAN_REQUEST` - Scan for new Bluetooth peers.
   This option can be used only by nRF Desktop central.
 
 Peer control using a hardware selector

@@ -84,23 +84,23 @@ External antenna performance setting
 .. rst-class:: v1-3-2 v1-3-1 v1-3-0
 
 NCSDK-5574: Warnings during FOTA
-   The :ref:`asset_tracker` application prints warnings and error messages during successful FOTA.
+   The nRF9160: Asset Tracker application prints warnings and error messages during successful FOTA.
 
 .. rst-class:: v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0 v0-4-0 v0-3-0
 
 NCSDK-6689: High current consumption in Asset Tracker
-  The :ref:`asset_tracker` application might show up to 2.5 mA current consumption in idle mode with :kconfig:`CONFIG_POWER_OPTIMIZATION_ENABLE` set to ``y``.
+  The nRF9160: Asset Tracker might show up to 2.5 mA current consumption in idle mode with :kconfig:`CONFIG_POWER_OPTIMIZATION_ENABLE` set to ``y``.
 
 .. rst-class:: v1-0-0 v0-4-0 v0-3-0
 
 Sending data before connecting to nRF Cloud
-  The :ref:`asset_tracker` application does not wait for connection to nRF Cloud before trying to send data.
+  The nRF9160: Asset Tracker application does not wait for connection to nRF Cloud before trying to send data.
   This causes the application to crash if the user toggles one of the switches before the kit is connected to the cloud.
 
 .. rst-class:: v1-4-2 v1-4-1 v1-4-0 v1-3-2 v1-3-1 v1-3-0 v1-2-1 v1-2-0 v1-1-0 v1-0-0 v0-4-0 v0-3-0
 
 IRIS-2676: Missing support for FOTA on nRF Cloud
-  The :ref:`asset_tracker` application does not support the nRF Cloud FOTA_v2 protocol.
+  The nRF9160: Asset Tracker application does not support the nRF Cloud FOTA_v2 protocol.
 
   **Workaround:** The implementation for supporting the nRF Cloud FOTA_v2 can be found in the following commits:
 
@@ -110,12 +110,6 @@ IRIS-2676: Missing support for FOTA on nRF Cloud
 
 Asset Tracker v2
 ================
-
-.. rst-class:: v1-8-0 v1-7-1 v1-7-0 v1-6-1 v1-6-0
-
-CIA-351: Connectivity issues with Azure IoT Hub
-  If a ``device bound`` message is sent to the device while the device is in the LTE Power Saving Mode, the TCP connection will most likely be terminated by the server.
-  Known symptoms of this are frequent reconnections to cloud, messages sent to Azure IoT Hub never arriving, and FOTA images being downloaded twice.
 
 .. rst-class:: v1-8-0 v1-7-1 v1-7-0 v1-6-1 v1-6-0
 
@@ -252,6 +246,14 @@ NCSDK-10106: Elevated current consumption when using applications without :ref:`
   When running applications that do not enable :ref:`nrfxlib:nrf_modem` on nRF9160 with build code B1A, current consumption will stay at 3 mA when in sleep.
 
   **Workaround:** Enable :ref:`nrfxlib:nrf_modem`.
+
+.. rst-class:: v1-8-0 v1-7-1 v1-7-0 v1-6-1 v1-6-0
+
+CIA-351: Connectivity issues with Azure IoT Hub
+  If a ``device-bound`` message is sent to the device while it is in the LTE Power Saving Mode (PSM), the TCP connection will most likely be terminated by the server.
+  Known symptoms of this are frequent reconnections to cloud, messages sent to Azure IoT Hub never arriving, and FOTA images being downloaded twice.
+
+  **Workaround:** Avoid using LTE Power Saving Mode (PSM) and extended DRX intervals longer than approximately 30 seconds. This will reduce the risk of the issue occurring, at the cost of increased power consumption.
 
 nRF5
 ****
@@ -395,7 +397,7 @@ KRKNWK-7721: MAC counter updating issue
 .. rst-class:: v1-8-0 v1-7-1 v1-7-0 v1-6-1 v1-6-0 v1-5-2 v1-5-1 v1-5-0 v1-4-2 v1-4-1 v1-4-0
 
 KRKNWK-7962: Logging interferes with shell output
-  :kconfig:`CONFIG_LOG_MINIMAL` is configured by default for most OpenThread samples.
+  :kconfig:`CONFIG_LOG_MODE_MINIMAL` is configured by default for most OpenThread samples.
   It accesses the UART independently from the shell backend, which sometimes leads to malformed output.
 
   **Workaround:** Disable logging or enable a more advanced logging option.
@@ -867,6 +869,25 @@ NCSDK-10196: DFU fails for some configurations with the quick session resume fea
   This is valid for the :ref:`nRF52840 DK <ug_nrf52>` and the :ref:`nRF5340 DK <ug_nrf5340>`.
 
   **Workaround:** Use the quick session resume feature only for configurations with the cellular network backend.
+
+Common Application Framework (CAF)
+==================================
+
+.. rst-class:: v1-8-0
+
+NCSDK-13247: Sensor manager dereferences NULL pointer on wake up for sensors without trigger
+  :ref:`caf_sensor_manager` dereferences NULL pointer while handling a :c:struct:`wake_up_event` if a configured sensor does not use trigger.
+  This leads to undefined behaviour.
+
+  **Workaround** Manually cherry-pick and apply commit with fix from main (commit hash: ``3db6da76206d379c223afe2de646218e60e4f339``).
+
+.. rst-class:: v1-8-0 v1-7-1 v1-7-0 v1-6-1 v1-6-0
+
+NCSDK-13058: Directed advertising does not work
+  The directed advertising feature enabled with the :kconfig:`CONFIG_CAF_BLE_ADV_DIRECT_ADV` option does not work as intended.
+  Using directed advertising towards peers that enable privacy may result in connection establishing problems.
+
+  **Workaround** Manually cherry-pick and apply commit with fix from main (commit hash: ``c61c677872943bcf7905ddeec8b24b07ae50752e``).
 
 Subsystems
 **********
@@ -1437,6 +1458,13 @@ SoftDevice Controller
 =====================
 
 In addition to the known issues listed here, see also :ref:`softdevice_controller_limitations` for permanent limitations.
+
+.. rst-class:: v1-8-0 v1-7-1 v1-7-0 v1-6-1 v1-6-0
+
+DRGN-16650: Undefined behavior when extended scanning is enabled.
+  When extended scanning is enabled and :kconfig:`CONFIG_BT_BUF_ACL_RX_SIZE` is set to a value less than 251, it may result in asserts or undefined behavior.
+
+  **Workaround:** Set :kconfig:`CONFIG_BT_BUF_EVT_RX_SIZE` to 255 when extended scanning is enabled.
 
 .. rst-class:: v1-8-0
 

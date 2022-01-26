@@ -454,6 +454,16 @@ static void search_start(void)
 		}
 	}
 
+#if defined(CONFIG_GNSS_MODULE_ELEVATION_MASK)
+	err = nrf_modem_gnss_elevation_threshold_set(CONFIG_GNSS_MODULE_ELEVATION_MASK);
+	if (err) {
+		LOG_ERR("Failed to set elevation threshold to %d, error: %d",
+			CONFIG_GNSS_MODULE_ELEVATION_MASK, err);
+	} else {
+		LOG_DBG("Elevation threshold set to %d", CONFIG_GNSS_MODULE_ELEVATION_MASK);
+	}
+#endif
+
 	err = nrf_modem_gnss_start();
 	if (err) {
 		LOG_WRN("Failed to start GNSS, error: %d", err);
@@ -509,14 +519,14 @@ static int lna_configure(void)
 
 	/* Make sure the AT command is not empty. */
 	if (xmagpio_command[0] != '\0') {
-		err = nrf_modem_at_printf(xmagpio_command);
+		err = nrf_modem_at_printf("%s", xmagpio_command);
 		if (err) {
 			return err;
 		}
 	}
 
 	if (xcoex0_command[0] != '\0') {
-		err = nrf_modem_at_printf(xcoex0_command);
+		err = nrf_modem_at_printf("%s", xcoex0_command);
 		if (err) {
 			return err;
 		}
