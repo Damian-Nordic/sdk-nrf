@@ -35,6 +35,10 @@
 
 #include <algorithm>
 
+#include <openthread/ip6.h>
+#include <openthread/udp.h>
+#include <zephyr/net/openthread.h>
+
 using namespace ::chip;
 using namespace ::chip::app;
 using namespace ::chip::Credentials;
@@ -61,6 +65,99 @@ bool sHaveBLEConnections;
 
 k_timer sFunctionTimer;
 } /* namespace */
+
+struct perf_test {
+	size_t total_bytes_received;
+	size_t last_1s_bytes_received;
+	size_t acks_sent;
+	int64_t first_block_received_ts;
+} g_perf_test;
+
+otUdpSocket g_socket;
+otMessageInfo g_rx_message_info;
+
+void send_reminder()
+{
+	if (!g_rx_message_info.mPeerPort) {
+		LOG_INF("No peer info");
+		return;
+	}
+
+	otInstance *instance = openthread_get_default_instance();
+	otMessage *message = otUdpNewMessage(instance, NULL);
+
+	if (!message) {
+		LOG_ERR("No free message");
+		return;
+	}
+
+	otError error = otMessageAppend(message, "ABCD", 4);
+
+	if (error != OT_ERROR_NONE) {
+		LOG_ERR("Failed to append message: %d", (int)error);
+		return;
+	}
+
+	otMessageInfo messageInfo;
+	memset(&messageInfo, 0, sizeof(messageInfo));
+	messageInfo.mSockAddr = g_rx_message_info.mSockAddr;
+	messageInfo.mPeerAddr = g_rx_message_info.mPeerAddr;
+	messageInfo.mPeerPort = g_rx_message_info.mPeerPort;
+
+	error = otUdpSend(instance, &g_socket, message, &messageInfo);
+
+	if (error != OT_ERROR_NONE) {
+		LOG_ERR("Failed to send message: %d", (int)error);
+		return;
+	}
+
+	if (++g_perf_test.acks_sent > 10) {
+		// reset test
+		g_perf_test.first_block_received_ts = 0;
+	}
+}
+
+void on_message_received(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
+{
+	const int64_t now = k_uptime_get();
+	const uint16_t length = otMessageGetLength(aMessage);
+
+	if (g_perf_test.first_block_received_ts == 0) {
+		g_perf_test.first_block_received_ts = now;
+	}
+
+	g_perf_test.last_1s_bytes_received += length;
+	g_perf_test.total_bytes_received += length;
+	g_perf_test.acks_sent = 0;
+	memcpy(&g_rx_message_info, aMessageInfo, sizeof(g_rx_message_info));
+	send_reminder();
+}
+
+void print_report()
+{
+	openthread_api_mutex_lock(openthread_get_default_context());
+
+	if (!g_perf_test.first_block_received_ts) {
+		openthread_api_mutex_unlock(openthread_get_default_context());
+		return;
+	}
+
+	if (g_perf_test.last_1s_bytes_received == 0) {
+		send_reminder();
+	}
+
+	const struct perf_test stat = g_perf_test;
+	g_perf_test.last_1s_bytes_received = 0;
+
+	openthread_api_mutex_unlock(openthread_get_default_context());
+
+	const unsigned throughput = (unsigned)(stat.last_1s_bytes_received);
+	const int64_t total_duration = (k_uptime_get() - stat.first_block_received_ts) / 1000;
+	const unsigned total_throughput = (unsigned)(stat.total_bytes_received / total_duration);
+
+	LOG_INF("Throughput: %7uB/s [%4ukB/s], total: %7uB/s [%4ukB/s], traffic: %u kB", throughput, throughput >> 10,
+		total_throughput, total_throughput >> 10, (unsigned)(stat.total_bytes_received >> 10));
+}
 
 AppTask AppTask::sAppTask;
 
@@ -158,11 +255,32 @@ CHIP_ERROR AppTask::StartApp()
 {
 	ReturnErrorOnFailure(Init());
 
+	otInstance *instance = openthread_get_default_instance();
+	otSockAddr addr = { .mPort = 5550 };
+
+	otError err = otUdpOpen(instance, &g_socket, on_message_received, NULL);
+
+	if (err != OT_ERROR_NONE) {
+		LOG_ERR("Failed to open socket: %d", (int)err);
+		return CHIP_ERROR_INTERNAL;
+	}
+
+	err = otUdpBind(instance, &g_socket, &addr, OT_NETIF_THREAD);
+
+	if (err != OT_ERROR_NONE) {
+		LOG_ERR("Failed to bind socket");
+		return CHIP_ERROR_INTERNAL;
+	}
+
 	AppEvent event = {};
 
 	while (true) {
-		k_msgq_get(&sAppEventQueue, &event, K_FOREVER);
-		DispatchEvent(event);
+		if (!k_msgq_get(&sAppEventQueue, &event, K_NO_WAIT)) {
+			DispatchEvent(event);
+		}
+
+		k_sleep(K_SECONDS(1));
+		print_report();
 	}
 
 	return CHIP_NO_ERROR;
