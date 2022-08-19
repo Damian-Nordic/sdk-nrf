@@ -32,6 +32,7 @@
 #ifdef CONFIG_CHIP_WIFI
 #include <app/clusters/network-commissioning/network-commissioning.h>
 #include <platform/nrfconnect/wifi/NrfWiFiDriver.h>
+#include <platform/nrfconnect/wifi/WiFiManager.h>
 #endif
 
 #ifdef CONFIG_CHIP_OTA_REQUESTOR
@@ -39,8 +40,12 @@
 #endif
 
 #include <dk_buttons_and_leds.h>
+#include <shell/shell.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/random/rand32.h>
 #include <zephyr/zephyr.h>
+
+#include <zephyr/net/socket.h>
 
 #include <algorithm>
 
@@ -50,6 +55,72 @@ using namespace ::chip::Credentials;
 using namespace ::chip::DeviceLayer;
 
 LOG_MODULE_DECLARE(app, CONFIG_MATTER_LOG_LEVEL);
+
+static int cmd_wifi(const struct shell *shell, size_t argc, char **argv)
+{
+	WiFiManager::ConnectionHandling handling{ [] {}, [] {}, System::Clock::Timeout{ 40000 } };
+	CHIP_ERROR err = WiFiManager::Instance().Connect(ByteSpan((const uint8_t *)argv[1], strlen(argv[1])),
+							 ByteSpan((const uint8_t *)argv[2], strlen(argv[2])), handling);
+
+	if (err != CHIP_NO_ERROR) {
+		ChipLogProgress(DeviceLayer, "XXX Connect %d", err.Format());
+		return 1;
+	}
+
+	return 0;
+}
+
+static int cmd_iperf(const struct shell *shell, size_t argc, char **argv)
+{
+	int sock = zsock_socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+
+	if (sock < 0) {
+		ChipLogProgress(DeviceLayer, "XXX Socket %d", sock);
+		return 1;
+	}
+
+	sockaddr_in6 addr = {};
+	addr.sin6_family = AF_INET6;
+	addr.sin6_port = htons(5555);
+	zsock_inet_pton(AF_INET6, argv[1], &addr.sin6_addr);
+
+	int rc = zsock_connect(sock, (const sockaddr *)&addr, sizeof(addr));
+
+	if (rc < 0) {
+		ChipLogProgress(DeviceLayer, "XXX Connect %d", rc);
+		return 1;
+	}
+
+	static int counter = 0;
+	static uint8_t buffer[1024];
+	const int counterEnd = counter + atoi(argv[2]);
+
+	while (1) {
+		if (counter >= counterEnd) {
+			break;
+		}
+
+		counter++;
+
+		ChipLogProgress(DeviceLayer, "%d", counter);
+		memcpy(buffer, &counter, sizeof(counter));
+		rc = zsock_send(sock, buffer, sizeof(buffer), 0);
+
+		if (rc < 0) {
+			ChipLogProgress(DeviceLayer, "XXX Send %d", rc);
+			break;
+		}
+
+		k_msleep(sys_rand32_get() % atoi(argv[3]));
+	}
+
+	zsock_close(sock);
+
+	return rc;
+}
+
+SHELL_CMD_ARG_REGISTER(wifi, NULL, "Wifi", cmd_wifi, 2, 2);
+SHELL_CMD_ARG_REGISTER(iperf, NULL, "Perf", cmd_iperf, 3, 3);
 
 namespace
 {
