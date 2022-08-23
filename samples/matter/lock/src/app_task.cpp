@@ -466,15 +466,7 @@ void AppTask::FunctionTimerEventHandler()
 #endif
 }
 
-void AppTask::StartThreadHandler()
-{
-	if (!ConnectivityMgr().IsThreadProvisioned()) {
-		StartDefaultThreadNetwork();
-		LOG_INF("Device is not commissioned to a Thread network. Starting with the default configuration.");
-	} else {
-		LOG_INF("Device is commissioned to a Thread network.");
-	}
-}
+void AppTask::StartThreadHandler() {}
 
 void AppTask::StartBLEAdvertisingHandler()
 {
