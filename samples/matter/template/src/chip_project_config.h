@@ -14,3 +14,6 @@
  */
 
 #pragma once
+
+/* Do not automatically register Thread Network Commissioning instance. */
+#define _NO_NETWORK_COMMISSIONING_DRIVER_

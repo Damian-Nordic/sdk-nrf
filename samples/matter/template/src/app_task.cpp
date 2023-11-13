@@ -12,6 +12,7 @@
 #include <platform/CHIPDeviceLayer.h>
 
 #include "board_util.h"
+#include <app/clusters/network-commissioning/network-commissioning.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
@@ -21,8 +22,12 @@
 #include <system/SystemError.h>
 
 #ifdef CONFIG_CHIP_WIFI
-#include <app/clusters/network-commissioning/network-commissioning.h>
 #include <platform/nrfconnect/wifi/NrfWiFiDriver.h>
+#endif
+
+#ifdef CONFIG_NET_L2_OPENTHREAD
+#include <platform/OpenThread/GenericNetworkCommissioningThreadDriver.h>
+#include <lib/dnssd/Discovery_ImplPlatform.h>
 #endif
 
 #ifdef CONFIG_CHIP_OTA_REQUESTOR
@@ -32,6 +37,7 @@
 #include <dk_buttons_and_leds.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/shell/shell.h>
 
 LOG_MODULE_DECLARE(app, CONFIG_CHIP_APP_LOG_LEVEL);
 
@@ -84,6 +90,11 @@ app::Clusters::NetworkCommissioning::Instance
 	sWiFiCommissioningInstance(0, &(NetworkCommissioning::NrfWiFiDriver::Instance()));
 #endif
 
+#ifdef CONFIG_NET_L2_OPENTHREAD
+NetworkCommissioning::GenericThreadDriver sGenericThreadDriver;
+app::Clusters::NetworkCommissioning::Instance sThreadCommissioningInstance(0, &sGenericThreadDriver);
+#endif
+
 CHIP_ERROR AppTask::Init()
 {
 	/* Initialize CHIP stack */
@@ -119,11 +130,6 @@ CHIP_ERROR AppTask::Init()
 		LOG_ERR("ConnectivityMgr().SetThreadDeviceType() failed: %s", ErrorStr(err));
 		return err;
 	}
-
-#elif defined(CONFIG_CHIP_WIFI)
-	sWiFiCommissioningInstance.Init();
-#else
-	return CHIP_ERROR_INTERNAL;
 #endif /* CONFIG_NET_L2_OPENTHREAD */
 
 	/* Initialize LEDs */
@@ -353,3 +359,29 @@ void AppTask::DispatchEvent(const AppEvent &event)
 		LOG_INF("Event received with no handler. Dropping event.");
 	}
 }
+
+#ifdef CONFIG_SHELL
+int ExecNetworkCommissioningRegister(const struct shell *shell, size_t argc, char **argv)
+{
+	if (argc == 2) {
+#ifdef CONFIG_CHIP_WIFI
+		if (strcmp(argv[1], "wifi") == 0) {
+			shell_print(shell, "Selecting wi-fi network commissioning");
+			sWiFiCommissioningInstance.Init();
+		}
+#endif
+#ifdef CONFIG_NET_L2_OPENTHREAD
+		if (strcmp(argv[1], "thread") == 0) {
+			shell_print(shell, "Selecting thread network commissioning");
+			sThreadCommissioningInstance.Init();
+			Dnssd::Resolver::SetInstance(Dnssd::DiscoveryImplPlatform::GetInstance());
+			Dnssd::ServiceAdvertiser::SetInstance(Dnssd::DiscoveryImplPlatform::GetInstance());
+		}
+#endif
+	}
+
+	return -ENOEXEC;
+}
+
+SHELL_CMD_ARG_REGISTER(nwcomm, NULL, "Register network commissioning", ExecNetworkCommissioningRegister, 1, 2);
+#endif
