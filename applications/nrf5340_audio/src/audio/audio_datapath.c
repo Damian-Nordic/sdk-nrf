@@ -160,6 +160,42 @@ static bool tone_active;
 static uint16_t test_tone_buf[CONFIG_AUDIO_SAMPLE_RATE_HZ / 100];
 static size_t test_tone_size;
 
+#ifdef CONFIG_AUDIO_BIT_DEPTH_16
+typedef int16_t sample_t;
+#else
+typedef int32_t sample_t;
+#endif
+
+#define MAX_DELAY_MS	  1000
+#define MAX_DELAY_SAMPLES (CONFIG_AUDIO_SAMPLE_RATE_HZ * MAX_DELAY_MS / 1000)
+
+static struct sw_effect_config {
+	/* Delay */
+	uint32_t delay_samples;
+	uint32_t feedback_perc;
+} sw_effect_config;
+
+void sw_effect_loop(sample_t *sample, size_t num_samples)
+{
+	static sample_t delay_buf[MAX_DELAY_SAMPLES] = {0};
+	static size_t delay_write_pos = 0;
+
+	sample_t *sample_end = sample + num_samples;
+
+	for (; sample < sample_end; sample += 2) {
+		size_t delay_read_pos =
+			(MAX_DELAY_SAMPLES + delay_write_pos - sw_effect_config.delay_samples) %
+			MAX_DELAY_SAMPLES;
+
+		int64_t output = *sample;
+		output += (int64_t)delay_buf[delay_read_pos] * sw_effect_config.feedback_perc / 100;
+		*sample = (sample_t)output;
+
+		delay_buf[delay_write_pos++] = *sample;
+		delay_write_pos %= MAX_DELAY_SAMPLES;
+	}
+}
+
 /**
  * @brief	Calculate error between sdu_ref and frame_start_ts.
  *
@@ -956,6 +992,9 @@ void audio_datapath_stream_out(const uint8_t *buf, size_t size, uint32_t sdu_ref
 			       BLK_STEREO_SIZE_OCTETS);
 		}
 
+		sw_effect_loop(&ctrl_blk.out.fifo[out_blk_idx * BLK_STEREO_NUM_SAMPS],
+			       BLK_STEREO_NUM_SAMPS);
+
 		/* Record producer block start reference */
 		ctrl_blk.out.prod_blk_ts[out_blk_idx] = recv_frame_ts_us + (i * BLK_PERIOD_US);
 
@@ -1142,6 +1181,27 @@ static int cmd_audio_pres_comp_disable(const struct shell *shell, size_t argc, c
 	return 0;
 }
 
+static int cmd_audio_delay(const struct shell *shell, size_t argc, const char **argv)
+{
+	uint32_t delay_samples = strtoull(argv[1], 0, 10) * CONFIG_AUDIO_SAMPLE_RATE_HZ / 1000;
+	uint32_t feedback_perc = strtoull(argv[2], 0, 10);
+
+	if (delay_samples > MAX_DELAY_SAMPLES) {
+		shell_error(shell, "Delay time too long");
+		return 1;
+	}
+
+	if (feedback_perc > 100) {
+		shell_error(shell, "Delay feedback too large");
+		return 1;
+	}
+
+	sw_effect_config.delay_samples = delay_samples;
+	sw_effect_config.feedback_perc = feedback_perc;
+
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(test_cmd,
 			       SHELL_COND_CMD(CONFIG_SHELL, nrf_tone_start, NULL,
 					      "Start local tone from nRF5340", cmd_i2s_tone_play),
@@ -1159,6 +1219,9 @@ SHELL_STATIC_SUBCMD_SET_CREATE(test_cmd,
 			       SHELL_COND_CMD(CONFIG_SHELL, pll_pres_comp_disable, NULL,
 					      "Disable audio presentation compensation",
 					      cmd_audio_pres_comp_disable),
+			       SHELL_COND_CMD_ARG(CONFIG_SHELL, delay, NULL,
+						  "Configure delay <delay_ms> <feedback_perc>",
+						  cmd_audio_delay, 3, 0),
 			       SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(test, &test_cmd, "Test mode commands", NULL);
