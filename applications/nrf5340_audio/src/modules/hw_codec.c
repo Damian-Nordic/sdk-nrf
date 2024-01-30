@@ -301,6 +301,11 @@ int hw_codec_default_conf_enable(void)
 		return ret;
 	}
 
+	ret = cs47l63_comm_reg_conf_write(compressor_enable, ARRAY_SIZE(compressor_enable));
+	if (ret) {
+		return ret;
+	}
+
 	ret = cs47l63_comm_reg_conf_write(output_enable, ARRAY_SIZE(output_enable));
 	if (ret) {
 		return ret;
@@ -663,6 +668,27 @@ static int cmd_filter_off(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+static int cmd_comp(const struct shell *shell, size_t argc, char **argv)
+{
+	uint32_t inDb = strtoull(argv[1], 0, 10);
+	uint32_t outDb = strtoull(argv[2], 0, 10);
+	uint32_t loSlope = strtoull(argv[3], 0, 10);
+	uint32_t hiSlope = strtoull(argv[4], 0, 10);
+
+	uint32_t compressor_conf[][2] = {
+		{CS47L63_DRC1_CONTROL3, loSlope | (hiSlope << 3)},
+		{CS47L63_DRC1_CONTROL4, outDb | (inDb << 5)},
+	};
+
+	int ret = cs47l63_comm_reg_conf_write(compressor_conf, ARRAY_SIZE(compressor_conf));
+	if (ret) {
+		shell_error(shell, "Error %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(hw_codec_cmd,
 			       SHELL_COND_CMD(CONFIG_SHELL, input, NULL,
 					      " Select input\n\t0: LINE_IN\n\t\t1: PDM_MIC",
@@ -674,6 +700,9 @@ SHELL_STATIC_SUBCMD_SET_CREATE(hw_codec_cmd,
 					      " Select LP filter frequency\n\t", cmd_filter_lp),
 			       SHELL_COND_CMD(CONFIG_SHELL, disable_filter, NULL,
 					      " Disable filtering\n\t", cmd_filter_off),
+			       SHELL_COND_CMD_ARG(CONFIG_SHELL, comp, NULL,
+						  " Set compressor <in> <out> <loslope> <hislope>",
+						  cmd_comp, 5, 0),
 			       SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(hw_codec, &hw_codec_cmd, "Change settings on HW codec", NULL);

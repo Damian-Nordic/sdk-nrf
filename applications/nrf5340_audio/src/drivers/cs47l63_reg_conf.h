@@ -101,11 +101,17 @@ const uint32_t line_in_enable[][2] = {
 	{ CS47L63_ASP1TX2_INPUT1, 0x800013 },
 };
 
+/* Wire compressor */
+const uint32_t compressor_enable[][2] = {
+	{CS47L63_DRC1_CONTROL1, 0b11},
+	{CS47L63_DRC1L_INPUT1, 0x800020},
+	{CS47L63_DRC1L_INPUT2, 0x800021},
+};
+
 /* Set up output */
 const uint32_t output_enable[][2] = {
-	{ CS47L63_OUTPUT_ENABLE_1, 0x0002 },
-	{ CS47L63_OUT1L_INPUT1, 0x800020 },
-	{ CS47L63_OUT1L_INPUT2, 0x800021 },
+	{CS47L63_OUTPUT_ENABLE_1, 0x0002},
+	{CS47L63_OUT1L_INPUT1, 0x8000C0},
 };
 
 const uint32_t output_disable[][2] = {
