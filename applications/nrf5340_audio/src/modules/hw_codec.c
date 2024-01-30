@@ -504,11 +504,176 @@ static int cmd_gain(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+static int check_preconditions(const struct shell *shell, size_t argc, char **argv)
+{
+	if (argc != 2) {
+		shell_error(shell, "Only one argument required, provided: %d", argc);
+		return -EINVAL;
+	}
+
+	if ((CONFIG_AUDIO_DEV != HEADSET)) {
+		shell_error(shell, "Filter support is available only for HEADSET device type");
+	}
+
+	return 0;
+}
+
+static int write_reg_safe(cs47l63_t *driver, uint32_t addr, uint32_t val)
+{
+	uint32_t current_value = 0x00000000;
+	int ec = cs47l63_read_reg(driver, addr, &current_value);
+
+	if (ec != 0) {
+		return ec;
+	}
+	/* TODO: check if the cs47l63_write_acked_reg() would fit better */
+	return cs47l63_write_reg(driver, addr, current_value | val);
+}
+
+static void print_status(const struct shell *shell)
+{
+	/* Check filter module status. */
+	uint32_t status = 0x00000000;
+	int ec = cs47l63_read_reg(&cs47l63_driver, CS47L63_FX_STATUS, &status);
+
+	if (ec != 0) {
+		shell_error(shell, "Cannot read status");
+	}
+
+	shell_print(shell, "FX_STATUS = %x", status);
+}
+
+#define LOW_PASS      0x00000000
+#define HIGH_PASS     0x00000001
+#define FILTER_ENABLE 0x00000001
+#define ASP1_RX1      0x0020
+#define FILER_OFF     0x00000000
+
+static int cmd_filter_hp(const struct shell *shell, size_t argc, char **argv)
+{
+	int ec = check_preconditions(shell, argc, argv);
+	if (ec != 0) {
+		shell_error(shell, "Failed to set HP filter freq");
+		return ec;
+	}
+
+	uint32_t freq = strtoul(argv[1], NULL, 16);
+
+	/* Configure filer input. */
+	ec = write_reg_safe(
+		&cs47l63_driver, CS47L63_LHPF1_INPUT1,
+		(CS47L63_LHPF1_SRC1 & ASP1_RX1) |
+			(CS47L63_LHPF1MIX_VOL1_MASK & (freq << CS47L63_LHPF1MIX_VOL1_SHIFT)));
+
+	if (ec != 0) {
+		shell_error(shell, "Failed to configure HP filter input");
+		return ec;
+	}
+
+	/* Enable HPLP filer. */
+	ec = write_reg_safe(&cs47l63_driver, CS47L63_LHPF_CONTROL1,
+			    CS47L63_LHPF1_EN_MASK | FILTER_ENABLE);
+
+	if (ec != 0) {
+		shell_error(shell, "Failed to enable filter");
+		return ec;
+	}
+
+	/* Configure filer as high pass. */
+	ec = write_reg_safe(&cs47l63_driver, CS47L63_LHPF_CONTROL2,
+			    CS47L63_LHPF1_MODE_MASK | HIGH_PASS);
+
+	if (ec != 0) {
+		shell_error(shell, "Failed to configure filter as HP");
+		return ec;
+	}
+
+	print_status(shell);
+
+	return 0;
+}
+
+static int cmd_filter_lp(const struct shell *shell, size_t argc, char **argv)
+{
+	int ec = check_preconditions(shell, argc, argv);
+	if (ec != 0) {
+		shell_error(shell, "Failed to set HP filter freq");
+		return ec;
+	}
+
+	uint32_t freq = strtoul(argv[1], NULL, 16);
+
+	/* Configure filer input. */
+	ec = write_reg_safe(
+		&cs47l63_driver, CS47L63_LHPF1_INPUT1,
+		(CS47L63_LHPF1_SRC1 & ASP1_RX1) |
+			(CS47L63_LHPF1MIX_VOL1_MASK & (freq << CS47L63_LHPF1MIX_VOL1_SHIFT)));
+
+	if (ec != 0) {
+		shell_error(shell, "Failed to configure HP filter input");
+		return ec;
+	}
+
+	/* Enable HPLP filer. */
+	ec = write_reg_safe(&cs47l63_driver, CS47L63_LHPF_CONTROL1,
+			    CS47L63_LHPF1_EN | FILTER_ENABLE);
+
+	if (ec != 0) {
+		shell_error(shell, "Failed to set HP filter freq");
+		return ec;
+	}
+
+	/* Configure filer as high pass. */
+	ec = write_reg_safe(&cs47l63_driver, CS47L63_LHPF_CONTROL2,
+			    CS47L63_LHPF1_MODE_MASK | LOW_PASS);
+
+	if (ec != 0) {
+		shell_error(shell, "Failed to set HP filter freq");
+		return ec;
+	}
+
+	print_status(shell);
+
+	return 0;
+}
+
+static int cmd_filter_off(const struct shell *shell, size_t argc, char **argv)
+{
+	/* Disable filtering. */
+	int ec = write_reg_safe(&cs47l63_driver, CS47L63_LHPF1_INPUT1, FILER_OFF);
+	if (ec != 0) {
+		shell_error(shell, "Failed to configure HP filter input");
+		return ec;
+	}
+
+	ec = write_reg_safe(&cs47l63_driver, CS47L63_LHPF_CONTROL1, FILER_OFF);
+
+	if (ec != 0) {
+		shell_error(shell, "Failed to set HP filter freq");
+		return ec;
+	}
+
+	ec = write_reg_safe(&cs47l63_driver, CS47L63_LHPF_CONTROL2, FILER_OFF);
+
+	if (ec != 0) {
+		shell_error(shell, "Failed to set HP filter freq");
+		return ec;
+	}
+
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(hw_codec_cmd,
 			       SHELL_COND_CMD(CONFIG_SHELL, input, NULL,
 					      " Select input\n\t0: LINE_IN\n\t\t1: PDM_MIC",
 					      cmd_input),
 			       SHELL_COND_CMD(CONFIG_SHELL, gain, NULL, " Set gain [dB]", cmd_gain),
+			       SHELL_COND_CMD(CONFIG_SHELL, filter_hp, NULL,
+					      " Select HP filter frequency\n\t", cmd_filter_hp),
+			       SHELL_COND_CMD(CONFIG_SHELL, filter_lp, NULL,
+					      " Select LP filter frequency\n\t", cmd_filter_lp),
+			       SHELL_COND_CMD(CONFIG_SHELL, disable_filter, NULL,
+					      " Disable filtering\n\t", cmd_filter_off),
 			       SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(hw_codec, &hw_codec_cmd, "Change settings on HW codec", NULL);
