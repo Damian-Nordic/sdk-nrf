@@ -478,10 +478,37 @@ static int cmd_input(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+static int cmd_gain(const struct shell *shell, size_t argc, char **argv)
+{
+	uint8_t gain = 0;
+
+	if (argc == 1) {
+		shell_print(shell, "Current gain %u dB", gain);
+		return 0;
+	}
+
+	if (argc != 2) {
+		shell_error(shell, "Only one argument required, provided: %d", argc);
+		return -EINVAL;
+	}
+
+	if (!isdigit((int)argv[1][0])) {
+		shell_error(shell, "Supplied argument is not numeric");
+		return -EINVAL;
+	}
+
+	gain = strtoul(argv[1], NULL, BASE_10);
+
+	shell_print(shell, "Selected gain: %u dB", gain);
+
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(hw_codec_cmd,
 			       SHELL_COND_CMD(CONFIG_SHELL, input, NULL,
 					      " Select input\n\t0: LINE_IN\n\t\t1: PDM_MIC",
 					      cmd_input),
+			       SHELL_COND_CMD(CONFIG_SHELL, gain, NULL, " Set gain [dB]", cmd_gain),
 			       SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(hw_codec, &hw_codec_cmd, "Change settings on HW codec", NULL);
