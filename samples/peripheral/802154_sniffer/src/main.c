@@ -31,8 +31,21 @@ static bool packet_led_state;
 static k_timeout_t heartbeat_interval;
 
 static void heartbeat(struct k_work *work);
-
 static K_WORK_DELAYABLE_DEFINE(heartbeat_work, heartbeat);
+
+static uint16_t ed_duration_ms;
+static uint16_t ed_count;
+static int16_t ed_max;
+static void ed_done_func(struct k_work *work);
+static K_WORK_DEFINE(ed_done_work, ed_done_func);
+
+static int8_t rssi_max = INT8_MIN;
+static int rssi_sum;
+static int rssi_num;
+static void rssi_sample(struct k_work *work);
+static K_WORK_DELAYABLE_DEFINE(rssi_sample_work, rssi_sample);
+static void rssi_collect(struct k_work *work);
+static K_WORK_DELAYABLE_DEFINE(rssi_collect_work, rssi_collect);
 
 static void heartbeat(struct k_work *work)
 {
@@ -132,6 +145,97 @@ static int cmd_sleep(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 SHELL_CMD_ARG_REGISTER(sleep, NULL, "Disable the radio", cmd_sleep, 1, 0);
+
+static void ed_done(const struct device *dev, int16_t max_ed)
+{
+	ed_max = max_ed;
+	k_work_submit(&ed_done_work);
+}
+
+static void ed_done_func(struct k_work *work)
+{
+	shell_print(uart_shell, "ED max %d, left %u", ed_max, ed_count);
+
+	if (ed_count) {
+		--ed_count;
+		radio_api->ed_scan(radio_dev, ed_duration_ms, ed_done);
+	}
+}
+
+static void rssi_sample(struct k_work *work)
+{
+	int8_t rssi;
+
+	if (nrf_802154_rssi_measure_begin()) {
+		k_busy_wait(30);
+		rssi = nrf_802154_rssi_last_get();
+
+		if (rssi != INT8_MAX) {
+			rssi_max = MAX(rssi, rssi_max);
+			rssi_sum += rssi;
+			rssi_num++;
+		}
+	}
+
+	k_work_schedule(&rssi_sample_work, K_MSEC(1));
+}
+
+static void rssi_collect(struct k_work *work)
+{
+	int8_t rssi_avg;
+
+	rssi_avg = (rssi_num > 0) ? (rssi_sum / rssi_num) : 127;
+
+	shell_print(uart_shell, "RSSI max %d avg %d, left %u", rssi_max, rssi_avg, ed_count);
+
+	rssi_max = INT8_MIN;
+	rssi_sum = 0;
+	rssi_num = 0;
+
+	if (ed_count) {
+		--ed_count;
+		k_work_schedule(&rssi_collect_work, K_MSEC(ed_duration_ms));
+	} else {
+		k_work_cancel_delayable(&rssi_sample_work);
+	}
+}
+
+static int cmd_ed(const struct shell *shell, size_t argc, char **argv)
+{
+	ARG_UNUSED(shell);
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	ed_duration_ms = atoi(argv[1]);
+	ed_count = atoi(argv[2]);
+
+	if (ed_count) {
+		--ed_count;
+		radio_api->ed_scan(radio_dev, ed_duration_ms, ed_done);
+	}
+
+	return 0;
+}
+SHELL_CMD_ARG_REGISTER(ed, NULL, "Run energy detection <duration-ms> <count>", cmd_ed, 3, 0);
+
+static int cmd_rssi(const struct shell *shell, size_t argc, char **argv)
+{
+	ARG_UNUSED(shell);
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	ed_duration_ms = atoi(argv[1]);
+	ed_count = atoi(argv[2]);
+
+	if (ed_count) {
+		--ed_count;
+		k_work_schedule(&rssi_sample_work, K_MSEC(1));
+		k_work_schedule(&rssi_collect_work, K_MSEC(ed_duration_ms));
+	}
+
+	return 0;
+}
+SHELL_CMD_ARG_REGISTER(rssi, NULL, "Run RSSI measurement <duration-ms> <count>", cmd_rssi, 3, 0);
 
 #if defined(CONFIG_BOARD_NRF52840DONGLE)
 static int cmd_bootloader(const struct shell *shell, size_t argc, char **argv)
