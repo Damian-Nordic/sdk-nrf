@@ -5,6 +5,9 @@
 #
 mainmenu "Matter nRF Connect Template Example Application"
 
+configdefault MBEDTLS_SSL_TLS_C
+  default y
+ 
 # Sample configuration used for Thread networking
 if OPENTHREAD
 
