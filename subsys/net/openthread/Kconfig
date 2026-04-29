@@ -139,6 +139,15 @@ endmenu # "OpenThread"
 
 endif # OPENTHREAD
 
+config OPENTHREAD_ZEPHYR_DNS_OFFLOAD
+	bool "Zephyr DNS offload using OpenThread DNS client"
+	depends on NET_SOCKETS_OFFLOAD
+	depends on OPENTHREAD_DNS_CLIENT || OPENTHREAD_RPC_CLIENT
+	help
+	  Builds ot_dns_offload_register(), which registers a Zephyr DNS offload
+	  path that uses the OpenThread DNS client (IPv4 A via NAT64 first, then
+	  IPv6 AAAA) and returns IPv6-only results for getaddrinfo().
+
 rsource "rpc/Kconfig"
 rsource "report/Kconfig"
 rsource "otperf/Kconfig"
