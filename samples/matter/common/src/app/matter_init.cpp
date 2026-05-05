@@ -52,6 +52,7 @@
 #endif
 
 #ifdef CONFIG_OPENTHREAD
+#include <net/ot_dns_offload.h>
 #include <openthread.h>
 #include <platform/OpenThread/GenericNetworkCommissioningThreadDriver.h>
 #endif
@@ -196,6 +197,10 @@ CHIP_ERROR InitNetworkingStack()
 	VerifyOrReturnLogError(error == CHIP_NO_ERROR, error);
 
 	sThreadNetworkDriver.Init();
+
+	if (IS_ENABLED(CONFIG_OPENTHREAD_ZEPHYR_DNS_OFFLOAD)) {
+		(void)ot_dns_offload_register();
+	}
 
 	return error;
 }
