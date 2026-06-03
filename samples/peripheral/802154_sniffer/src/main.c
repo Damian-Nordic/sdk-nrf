@@ -107,6 +107,28 @@ static int cmd_channel(const struct shell *shell, size_t argc, char **argv)
 }
 SHELL_CMD_ARG_REGISTER(channel, NULL, "Set radio channel", cmd_channel, 1, 1);
 
+static int cmd_phy(const struct shell *shell, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+
+	nrf_802154_phy_t phy;
+
+	if (strcmp(argv[1], "2m") == 0) {
+		phy = NRF_802154_PHY_EXP1_GFSK_2MBPS;
+	} else if (strcmp(argv[1], "250k") == 0) {
+		phy = NRF_802154_PHY_OQPSK_250KBPS;
+	} else {
+		shell_error(shell, "unknown phy: %s (use 2m or 250k)", argv[1]);
+		return -EINVAL;
+	}
+
+	nrf_802154_phy_set(phy);
+
+	return 0;
+}
+
+SHELL_CMD_ARG_REGISTER(phy, NULL, "Set radio PHY <2m|250k>", cmd_phy, 2, 0);
+
 static int cmd_receive(const struct shell *shell, size_t argc, char **argv)
 {
 	ARG_UNUSED(shell);
