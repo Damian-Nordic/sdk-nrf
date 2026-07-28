@@ -15,3 +15,7 @@ target_sources(app PRIVATE
 	src/main.c
 	src/sniffer_uart.c
 )
+
+if(CONFIG_IEEE802154_SNIFFER_TIME_SYNC)
+	target_sources(app PRIVATE src/time_sync.c)
+endif()

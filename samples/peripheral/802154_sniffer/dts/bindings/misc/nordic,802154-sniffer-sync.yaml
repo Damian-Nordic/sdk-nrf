@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Nordic Semiconductor ASA
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+
+description: GPIO pin used for hardware time sync between sniffers
+
+compatible: "nordic,802154-sniffer-sync"
+
+properties:
+  sync-gpios:
+    type: phandle-array
+    required: true
+    description: GPIO used for sync pulse (master output, slave input)

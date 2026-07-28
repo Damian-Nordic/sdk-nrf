@@ -8,6 +8,12 @@
 	chosen {
 		zephyr,shell-uart = &cdc_acm_uart0;
 	};
+
+	sniffer_sync: sniffer-sync {
+		compatible = "nordic,802154-sniffer-sync";
+		/* SYNC PIN: P0.03. */
+		sync-gpios = <&gpio0 3 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
+	};
 };
 
 &zephyr_udc0 {

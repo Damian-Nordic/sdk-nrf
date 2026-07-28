@@ -14,12 +14,19 @@
 #include <dk_buttons_and_leds.h>
 #include "sniffer_uart.h"
 
+#if IS_ENABLED(CONFIG_IEEE802154_SNIFFER_TIME_SYNC)
+#include "time_sync.h"
+#endif
+
 #if defined(CONFIG_BOARD_NRF52840DONGLE)
 #include <zephyr/drivers/gpio.h>
 static const struct device *const gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 #endif
 
 #define HEX_STRING_LENGTH (2 * MAX_PACKET_SIZE + 1)
+
+/* Constant RX-timestamp bias of the nRF54L radio relative to nRF52 (us). */
+#define NRF54L_RX_TIMESTAMP_BIAS_US 10
 
 static const struct device *radio_dev =
 	DEVICE_DT_GET(DT_CHOSEN(zephyr_ieee802154));
@@ -68,6 +75,10 @@ int net_recv_data(struct net_if *iface, struct net_pkt *pkt)
 	struct net_ptp_time *pkt_time = net_pkt_timestamp(pkt);
 	uint64_t timestamp =
 		pkt_time->second * USEC_PER_SEC + pkt_time->nanosecond / NSEC_PER_USEC;
+
+#if defined(CONFIG_SOC_SERIES_NRF54L)
+	timestamp += NRF54L_RX_TIMESTAMP_BIAS_US;
+#endif
 
 	packet_led_state = !packet_led_state;
 	dk_set_led(DK_LED4, packet_led_state);
@@ -143,12 +154,84 @@ static int cmd_sleep(const struct shell *shell, size_t argc, char **argv)
 	ARG_UNUSED(argc);
 	ARG_UNUSED(argv);
 
+#if IS_ENABLED(CONFIG_IEEE802154_SNIFFER_TIME_SYNC)
+	time_sync_stop();
+#endif
+
 	heartbeat_interval = K_SECONDS(1);
 	radio_api->stop(radio_dev);
 
 	return 0;
 }
 SHELL_CMD_ARG_REGISTER(sleep, NULL, "Disable the radio", cmd_sleep, 1, 0);
+
+#if IS_ENABLED(CONFIG_IEEE802154_SNIFFER_TIME_SYNC)
+static int cmd_sync_stop(const struct shell *shell, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	time_sync_stop();
+	shell_print(shell, "sync stopped");
+	return 0;
+}
+
+static int cmd_sync_master_start(const struct shell *shell, size_t argc, char **argv)
+{
+	uint32_t interval_ms = CONFIG_IEEE802154_SNIFFER_SYNC_INTERVAL_MS;
+
+	if (argc >= 2) {
+		interval_ms = (uint32_t)atoi(argv[1]);
+	}
+
+	int err = time_sync_master_start(interval_ms);
+
+	if (err != 0) {
+		shell_error(shell, "sync master start failed: %d", err);
+		return err;
+	}
+
+	shell_print(shell, "sync master started interval_ms=%u", interval_ms);
+	return 0;
+}
+
+static int cmd_sync_slave(const struct shell *shell, size_t argc, char **argv)
+{
+	uint8_t sniffer_id = 1;
+
+	if (argc >= 2) {
+		sniffer_id = (uint8_t)atoi(argv[1]);
+	}
+
+	int err = time_sync_slave_start(sniffer_id);
+
+	if (err != 0) {
+		shell_error(shell, "sync slave start failed: %d", err);
+		return err;
+	}
+
+	shell_print(shell, "sync slave started id=%u", sniffer_id);
+	return 0;
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(
+	sub_sync_master,
+	SHELL_CMD_ARG(start, NULL,
+		      "sync master start [interval_ms]",
+		      cmd_sync_master_start, 1, 1),
+	SHELL_SUBCMD_SET_END);
+
+SHELL_STATIC_SUBCMD_SET_CREATE(
+	sub_sync,
+	SHELL_CMD(master, &sub_sync_master, "Master sync role", NULL),
+	SHELL_CMD_ARG(slave, NULL,
+		      "Start sync slave [id]",
+		      cmd_sync_slave, 1, 1),
+	SHELL_CMD_ARG(stop, NULL, "Stop time sync", cmd_sync_stop, 1, 0),
+	SHELL_SUBCMD_SET_END);
+
+SHELL_CMD_REGISTER(sync, &sub_sync, "Hardware time sync commands", NULL);
+#endif /* CONFIG_IEEE802154_SNIFFER_TIME_SYNC */
 
 #if defined(CONFIG_BOARD_NRF52840DONGLE)
 static int cmd_bootloader(const struct shell *shell, size_t argc, char **argv)
