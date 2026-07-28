@@ -568,8 +568,8 @@ class MultiSnifferEngine:
                 # Start reader processes
                 for cfg in self.ports_config:
                     self.processes.append(Process(
-                        target=SnifferProcess.serial_reader, 
-                        args=(cfg.port, self.queue, cfg.port), 
+                        target=SnifferProcess.serial_reader,
+                        args=(cfg.port, self.queue, cfg.port),
                         daemon=True
                     ))
 
@@ -670,7 +670,7 @@ class WiresharkExtcap:
     @staticmethod
     def extcap_config(reload_option: Optional[str] = None):
         """Generate dynamic interface configuration.
-        
+
         Ports are auto-detected and fixed in sorted order.
         User configures channel and PHY per port.
         First port is always master, rest are slaves.
@@ -771,10 +771,10 @@ def parse_arguments():
     parser.add_argument("--fifo")
     parser.add_argument("--extcap-control-in")
     parser.add_argument("--metadata")
-    
+
     # Dynamic per-port arguments (will be parsed from sys.argv)
     # Format: --port1, --channel1, --phy1, --port2, --channel2, --phy2, etc.
-    
+
     result, unknown = parser.parse_known_args()
 
     if result.capture and not result.extcap_interface:

@@ -6,6 +6,7 @@
 
 #include "sniffer_uart.h"
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -85,8 +86,10 @@ static int uart_format_line(struct sniffer_uart_line *line, const char *fmt, va_
 
 	len = vsnprintk(line->data, sizeof(line->data) - 2, fmt, args);
 	if (len <= 0) {
-		return len;
+		return -EINVAL;
 	}
+
+	len = MIN(len, (int)sizeof(line->data) - 3);
 
 	if (len >= 2 && line->data[len - 2] == '\r' && line->data[len - 1] == '\n') {
 		line->len = len;
@@ -134,47 +137,60 @@ static void uart_emit_common(struct k_msgq *msgq, bool sync, const char *fmt, va
 	drain_wake_up();
 }
 
-static bool drain_line(struct k_msgq *msgq)
-{
+struct drain_slot {
 	struct sniffer_uart_line line;
+	bool valid;
+};
 
-	/* Peek first and only dequeue once the line has 
-	 * actually been handed to the shell. 
-	 */
-	if (k_msgq_peek(msgq, &line) != 0) {
-		return false;
+static struct drain_slot sync_slot;
+static struct drain_slot data_slot;
+
+static bool drain_line(struct k_msgq *msgq, struct drain_slot *slot)
+{
+	if (!slot->valid) {
+		if (k_msgq_get(msgq, &slot->line, K_NO_WAIT) != 0) {
+			return false;
+		}
+		slot->valid = true;
 	}
 
 	if (!host_port_ready()) {
-		(void)k_msgq_get(msgq, &line, K_NO_WAIT);
+		slot->valid = false;
 		return true;
 	}
 
 	if (!shell_tx_lock()) {
+		/* Keep the line in the slot and retry on the next pass. */
 		return false;
 	}
 
-	shell_tx_write_line(&line);
+	shell_tx_write_line(&slot->line);
 	shell_tx_unlock();
-
-	(void)k_msgq_get(msgq, &line, K_NO_WAIT);
+	slot->valid = false;
 
 	return true;
+}
+
+static bool drain_pending(void)
+{
+	return sync_slot.valid || data_slot.valid ||
+	       k_msgq_num_used_get(&sync_msgq) > 0 ||
+	       k_msgq_num_used_get(&data_msgq) > 0;
 }
 
 static bool drain_once(void)
 {
 	unsigned int data_drained = 0;
 
-	while (k_msgq_num_used_get(&sync_msgq) > 0) {
-		if (!drain_line(&sync_msgq)) {
+	while (sync_slot.valid || k_msgq_num_used_get(&sync_msgq) > 0) {
+		if (!drain_line(&sync_msgq, &sync_slot)) {
 			return false;
 		}
 	}
 
 	while (data_drained < SNIFFER_UART_DATA_DRAIN_BATCH &&
-	       k_msgq_num_used_get(&data_msgq) > 0) {
-		if (!drain_line(&data_msgq)) {
+	       (data_slot.valid || k_msgq_num_used_get(&data_msgq) > 0)) {
+		if (!drain_line(&data_msgq, &data_slot)) {
 			return false;
 		}
 		data_drained++;
@@ -192,8 +208,7 @@ static void drain_thread_entry(void *p1, void *p2, void *p3)
 	while (true) {
 		(void)k_sem_take(&drain_wake, K_FOREVER);
 
-		while (k_msgq_num_used_get(&sync_msgq) > 0 ||
-		       k_msgq_num_used_get(&data_msgq) > 0) {
+		while (drain_pending()) {
 			if (drain_once()) {
 				k_yield();
 			} else {

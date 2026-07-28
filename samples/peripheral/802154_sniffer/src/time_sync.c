@@ -284,7 +284,7 @@ static uint32_t timer_compare_evt_address_get(int32_t chan)
 
 #if !defined(CONFIG_SOC_SERIES_NRF54L)
 /*
- * TIMER1 must NOT be used here as it would corrupt radio 
+ * TIMER1 must NOT be used here as it would corrupt radio
  * timestamp precision and internal driver timing.
  */
 static nrfx_timer_t hf_timer = NRFX_TIMER_INSTANCE(NRF_TIMER2);
