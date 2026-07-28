@@ -765,7 +765,8 @@ static bool nrf5_tx_at(otRadioFrame *frame, uint8_t *payload)
 		convert_32bit_us_wrapped_to_64bit_ns(
 			nrf5_data.tx.frame.mInfo.mTxInfo.mTxDelayBaseTime +
 			nrf5_data.tx.frame.mInfo.mTxInfo.mTxDelay) /
-		NSEC_PER_USEC);
+		NSEC_PER_USEC,
+		nrf_802154_phy_get());
 
 	nrf_802154_tx_error_t result = nrf_802154_transmit_raw_at(payload, tx_at, &metadata);
 	__ASSERT(result != NRF_802154_TX_ERROR_INVALID_REQUEST, "Invalid transmit request");
@@ -1594,7 +1595,8 @@ void otPlatRadioUpdateCslSampleTime(otInstance *aInstance, uint32_t aCslSampleTi
 	if (changed) {
 #endif /* CONFIG_NRF_802154_SER_HOST */
 		nrf_802154_csl_writer_anchor_time_set(
-			nrf_802154_timestamp_phr_to_mhr_convert(expected_rx_time / NSEC_PER_USEC));
+			nrf_802154_timestamp_phr_to_mhr_convert(expected_rx_time / NSEC_PER_USEC,
+							      nrf_802154_phy_get()));
 #if defined(CONFIG_NRF_802154_SER_HOST)
 	}
 #endif /* CONFIG_NRF_802154_SER_HOST */
@@ -1832,7 +1834,8 @@ static void openthread_nrf_802154_received_timestamp_raw(uint8_t *data, int8_t p
 		nrf5_data.rx.frames[i].lqi = lqi;
 
 		nrf5_data.rx.frames[i].time =
-			nrf_802154_timestamp_end_to_phr_convert(time, data[0]);
+			nrf_802154_timestamp_end_to_phr_convert(time, data[0],
+							      nrf_802154_phy_get());
 
 		nrf5_data.rx.frames[i].ack_fpb = nrf5_data.rx.last_frame_ack_fpb;
 		nrf5_data.rx.frames[i].ack_seb = nrf5_data.rx.last_frame_ack_seb;
@@ -1933,7 +1936,8 @@ openthread_nrf_802154_transmitted_raw(uint8_t *frame,
 			nrf5_data.ack.desc.time = NRF_802154_NO_TIMESTAMP;
 		} else {
 			nrf5_data.ack.desc.time = nrf_802154_timestamp_end_to_phr_convert(
-				metadata->data.transmitted.time, nrf5_data.ack.desc.psdu[0]);
+				metadata->data.transmitted.time, nrf5_data.ack.desc.psdu[0],
+				nrf_802154_phy_get());
 		}
 	}
 
