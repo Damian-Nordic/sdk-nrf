@@ -1,0 +1,18 @@
+/*
+ * Copyright (c) 2026 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+ */
+
+/ {
+	sniffer_sync: sniffer-sync {
+		compatible = "nordic,802154-sniffer-sync";
+		/* SYNC PIN: P0.02. */
+		sync-gpios = <&gpio0 2 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
+	};
+};
+
+&board_cdc_acm_uart {
+	hw-flow-control;
+	tx-fifo-size = <8192>;
+};
