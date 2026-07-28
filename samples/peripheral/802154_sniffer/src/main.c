@@ -7,12 +7,12 @@
 #include <zephyr/kernel.h>
 #include <zephyr/net/ieee802154_radio.h>
 #include <zephyr/shell/shell.h>
-#include <zephyr/shell/shell_uart.h>
 #include <zephyr/sys/util.h>
 #include <nrf_802154.h>
 #include <nrf_802154_const.h>
 #include <stdlib.h>
 #include <dk_buttons_and_leds.h>
+#include "sniffer_uart.h"
 
 #if defined(CONFIG_BOARD_NRF52840DONGLE)
 #include <zephyr/drivers/gpio.h>
@@ -24,7 +24,6 @@ static const struct device *const gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 static const struct device *radio_dev =
 	DEVICE_DT_GET(DT_CHOSEN(zephyr_ieee802154));
 static struct ieee802154_radio_api *radio_api;
-static const struct shell *uart_shell;
 static char hex_string[HEX_STRING_LENGTH];
 static bool heartbeat_led_state;
 static bool packet_led_state;
@@ -74,12 +73,8 @@ int net_recv_data(struct net_if *iface, struct net_pkt *pkt)
 	dk_set_led(DK_LED4, packet_led_state);
 	bin2hex(psdu, length, hex_string, HEX_STRING_LENGTH);
 
-	shell_print(uart_shell,
-		    "received: %s power: %d lqi: %u time: %llu",
-		    hex_string,
-		    rssi,
-		    lqi,
-		    timestamp);
+	sniffer_uart_emit("received: %s power: %d lqi: %u time: %llu",
+			  hex_string, rssi, lqi, timestamp);
 
 	net_pkt_unref(pkt);
 
@@ -185,9 +180,9 @@ SHELL_CMD_ARG_REGISTER(bootloader, NULL, "Reboot into bootloader", cmd_bootloade
 
 int main(void)
 {
-	(void) dk_leds_init();
+	(void)dk_leds_init();
 
-	uart_shell = shell_backend_uart_get_ptr();
+	sniffer_uart_init();
 	heartbeat_interval = K_SECONDS(1);
 	k_work_reschedule(&heartbeat_work, heartbeat_interval);
 
