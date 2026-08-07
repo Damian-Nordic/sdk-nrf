@@ -7,7 +7,7 @@ IEEE 802.15.4 Sniffer
    :local:
    :depth: 2
 
-The IEEE 802.15.4 Sniffer listens to a selected IEEE 802.15.4 channel (2.4GHz O-QPSK with DSSS) and integrates with the nRF 802.15.4 sniffer extcap for Wireshark.
+The IEEE 802.15.4 Sniffer listens to a selected IEEE 802.15.4 channel, using either the 2.4 GHz O-QPSK with DSSS PHY or the 2 Mbps GFSK PHY, and integrates with the nRF 802.15.4 sniffer extcap for Wireshark.
 
 Requirements
 ************
@@ -57,6 +57,28 @@ For example:
       :class: highlight
 
       channel *23*
+
+phy - Change the radio PHY
+==========================
+
+The command selects the physical layer used for reception.
+
+   .. parsed-literal::
+      :class: highlight
+
+      phy *<phy>*
+
+The ``<phy>`` argument is either ``250k`` for the 2.4 GHz O-QPSK with DSSS PHY, or ``2m`` for the 2 Mbps GFSK PHY.
+
+For example:
+
+   .. parsed-literal::
+      :class: highlight
+
+      phy *250k*
+
+.. note::
+   Set the PHY before the channel, because changing the PHY can reset the channel setting.
 
 receive - start capturing packets
 =================================
