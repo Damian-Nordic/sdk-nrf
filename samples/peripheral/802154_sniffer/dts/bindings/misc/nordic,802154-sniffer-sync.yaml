@@ -1,0 +1,18 @@
+# Copyright (c) 2026 Nordic Semiconductor ASA
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+
+description: GPIO pin used for hardware time sync between sniffers
+
+compatible: "nordic,802154-sniffer-sync"
+
+properties:
+  sync-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      GPIO used for the sync pulse (output on the primary device, input on a
+      secondary one).
+
+      Only the port and the pin number are used. The direction follows the role
+      selected at runtime, while the pull and the polarity are fixed by the
+      capture path (pull-down input, rising edge), so the flags cell is ignored.

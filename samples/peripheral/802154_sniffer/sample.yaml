@@ -8,11 +8,24 @@ tests:
     integration_platforms:
       - nrf52840dk/nrf52840
       - nrf52840dongle/nrf52840
-      - nrf5340dk/nrf5340/cpuapp
+      - nrf54lm20dongle/nrf54lm20b/cpuapp
     platform_allow:
       - nrf52840dk/nrf52840
       - nrf52840dongle/nrf52840
-      - nrf5340dk/nrf5340/cpuapp
+      - nrf54lm20dongle/nrf54lm20b/cpuapp
+    tags:
+      - ci_build
+      - sysbuild
+      - ci_samples_peripheral_802154
+  sample.peripheral.802154_sniffer.no_time_sync:
+    sysbuild: true
+    build_only: true
+    extra_configs:
+      - CONFIG_IEEE802154_SNIFFER_TIME_SYNC=n
+    integration_platforms:
+      - nrf52840dk/nrf52840
+    platform_allow:
+      - nrf52840dk/nrf52840
     tags:
       - ci_build
       - sysbuild

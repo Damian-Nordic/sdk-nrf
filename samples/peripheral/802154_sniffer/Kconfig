@@ -1,0 +1,54 @@
+#
+# Copyright (c) 2026 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+mainmenu "IEEE 802.15.4 Sniffer sample"
+
+config IEEE802154_SNIFFER_TIME_SYNC
+	bool "Hardware GPIO time synchronization"
+	select NRFX_GPIOTE
+	select NRFX_GPPI
+	# Only the nRF52 and nRF53 path drives the pulse from a TIMER instance,
+	# nRF54L uses GRTC.
+	select NRFX_TIMER if !SOC_SERIES_NRF54L
+	default y if $(dt_nodelabel_enabled,sniffer_sync)
+	help
+	  Enable GPIOTE + PPI + GRTC/RTC capture based time sync between
+	  multiple sniffer devices. Requires sniffer_sync devicetree node.
+
+config IEEE802154_SNIFFER_SYNC_INTERVAL_MS
+	int "Primary sync pulse interval (ms)"
+	default 100
+	range 10 60000
+	depends on IEEE802154_SNIFFER_TIME_SYNC
+	help
+	  Interval between the sync pulses of the primary device. The lower bound
+	  leaves room for the pulse to be cleared from a workqueue item before the
+	  next one is due.
+
+config IEEE802154_SNIFFER_SYNC_PULSE_US
+	int "Primary sync pulse width (us)"
+	default 10
+	depends on IEEE802154_SNIFFER_TIME_SYNC
+	help
+	  Requested width of the sync pulse. Only the rising edge is generated in
+	  hardware, while the pin is cleared from a workqueue item, so the pulse is
+	  at least one system tick wide (about 30 us) regardless of this value.
+
+config IEEE802154_SNIFFER_UART_BUFFER_SIZE
+	int "Capture output buffer size (bytes)"
+	default 131072
+	help
+	  Size of the ring buffer holding capture lines that are waiting for the
+	  UART.
+
+config IEEE802154_SNIFFER_UART_BUFFER_LARGE
+	bool
+	default y if IEEE802154_SNIFFER_UART_BUFFER_SIZE > 32767
+	select RING_BUFFER_LARGE
+	help
+	  Ring buffers above 32 kB need 32 bit indices.
+
+source "Kconfig.zephyr"

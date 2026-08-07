@@ -318,7 +318,21 @@ nRF5340 samples
 Peripheral samples
 ------------------
 
-|no_changes_yet_note|
+* :ref:`802154_sniffer` sample:
+
+  * Added:
+
+    * Hardware time synchronization between several sniffers over a GPIO pin, controlled with the ``sync`` command and configured with the ``sniffer_sync`` devicetree node.
+    * Support for the ``nrf54lm20dongle/nrf54lm20b/cpuapp`` board.
+
+  * Updated:
+
+    * The capture output to be written by a dedicated thread that drains a ring buffer, so that bursts are no longer lost in the shell backend.
+    * The format of the capture line to ``r <data> <power> <lqi> <time>``, where ``<data>`` is the Base64 representation of the frame without the FCS field.
+
+  * Removed:
+
+    * Support for the ``nrf5340dk/nrf5340/cpuapp`` board.
 
 PMIC samples
 ------------

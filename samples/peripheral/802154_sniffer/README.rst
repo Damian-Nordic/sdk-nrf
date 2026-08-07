@@ -95,12 +95,18 @@ The received packets will be printed to the command-line with the following form
    .. parsed-literal::
       :class: highlight
 
-      received: *<data>* power: *<power>* lqi: *<lqi>* time: *<timestamp>*
+      r *<data>* *<power>* *<lqi>* *<timestamp>*
 
-* The ``<data>`` is a hexidecimal string representation of the received packet.
+* The ``<data>`` is a Base64 string representation of the received packet, without the FCS field.
 * The ``<power>`` value is the signal power in dBm.
 * The ``<lqi>`` value is the IEEE 802.15.4 Link Quality Indicator.
 * The ``<timestamp>`` value is the absolute time of the received packet since the sniffer booted.
+
+.. note::
+   Earlier versions of the sample used a longer, hexadecimal format
+   (``received: <data> power: <power> lqi: <lqi> time: <timestamp>``).
+   The Wireshark script still accepts the old format, so it works with sniffers that run older
+   firmware (but without multi-sniffer support).
 
 sleep - stop capturing packets
 ==============================
@@ -111,6 +117,54 @@ The ``sleep`` command disables the radio and ends the receive process.
       :class: highlight
 
       sleep
+
+sync - synchronize several sniffers
+===================================
+
+When ``CONFIG_IEEE802154_SNIFFER_TIME_SYNC`` is enabled and the ``sniffer_sync`` devicetree node is present, the sample can emit hardware-timestamped sync pulses on a GPIO pin.
+
+The primary device generates the pulses and reports ``sync role=primary seq=<n> t=<us>``:
+
+   .. parsed-literal::
+      :class: highlight
+
+      sync primary start
+      sync primary start *<interval_ms>*
+
+The ``<interval_ms>`` argument is an integer in the range between 10 and 60000.
+The lower bound leaves room for the pulse to be cleared before the next one is due.
+
+A secondary device captures the pulses and reports ``sync role=secondary id=<id> edge=<n> t=<us>``:
+
+   .. parsed-literal::
+      :class: highlight
+
+      sync secondary
+      sync secondary *<id>*
+
+The following command stops the synchronization:
+
+   .. parsed-literal::
+      :class: highlight
+
+      sync stop
+
+Connect the sync pin of every board together, plus a common ground.
+The role is selected in software (``sync primary start`` or ``sync secondary``), so any of the connected boards can be the primary one.
+The pin is defined by the ``sync-gpios`` property in the board overlay in the :file:`boards` directory:
+
+* ``nrf54lm20dongle/nrf54lm20b/cpuapp`` - **P0.03**
+* ``nrf52840dongle/nrf52840`` - **P0.02**
+* ``nrf52840dk/nrf52840`` - **P0.03**
+
+.. note::
+   On the nRF54LM20, select the replacement pin from **P0** or **P1**, because a secondary device needs a GPIOTE channel to timestamp the pulse.
+   The **P2** port has no ``gpiote-instance`` assigned in the devicetree and cannot capture the pulse.
+
+.. note::
+   When adding an overlay for a new board, include the ``hw-flow-control`` and ``tx-fifo-size`` properties from :file:`boards/cdc-acm-common.dtsi` on the CDC ACM UART node.
+   The flow control flag only affects the polling write path, where the USB CDC driver otherwise discards characters once its TX FIFO fills.
+   The FIFO is kept small on purpose, because it is drained in order and every queued byte delays the next sync report.
 
 bootloader - reboot the device to the bootloader
 ================================================
@@ -131,6 +185,11 @@ Configuration
 *************
 
 |config|
+
+The following sample-specific Kconfig options are used in this sample (located in :file:`samples/peripheral/802154_sniffer/Kconfig`) :
+
+.. options-from-kconfig::
+   :show-type:
 
 Building and running
 ********************
@@ -172,7 +231,7 @@ After programming the sample to your development kit, complete the following ste
    .. parsed-literal::
       :class: highlight
 
-      received: 49a85d41a5fffff4110f10270000369756e65619d09428a04b301951821db234460aa5ec4ff506631ef8adb22674683700 power: -39 lqi: 220 time: 15822687
+      r SahdQaX///QRDxAnAAA2l1bmVhnQlCigSzAZUYIdsjRGCqXsT/UGYx74rbImdGg= -39 220 15822687
 
    The **LED 4** will toggle its state when a frame is received.
 
@@ -204,9 +263,17 @@ This sample uses the following Zephyr libraries:
   * :file:`include/zephyr/kernel.h`
   * :file:`include/zephyr/sys/util.h`
 
+* :ref:`zephyr:ring_buffers_v2`:
+
+  * :file:`include/zephyr/sys/ring_buffer.h`
+
 * :ref:`zephyr:ieee802154_interface`:
 
   * :file:`include/zephyr/net/ieee802154_radio.h`
+
+* :ref:`zephyr:uart_api`:
+
+  * :file:`include/zephyr/drivers/uart.h`
 
 * :ref:`zephyr:shell_api`:
 
