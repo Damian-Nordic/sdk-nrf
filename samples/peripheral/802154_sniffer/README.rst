@@ -181,6 +181,26 @@ The device reboots into bootloader mode, and the red LED starts pulsing.
 .. note::
    The ``bootloader`` command is available only for the ``nrf52840dongle/nrf52840`` board.
 
+Capturing in Wireshark
+**********************
+
+The :file:`scripts/nrf802154_sniffer.py` script is a single extcap that auto-detects every connected sniffer CDC port and skips the MCUmgr, DFU, and bootloader interfaces exposed by the same device.
+With one port connected it behaves like a plain single-device sniffer.
+With two or more it also drives the hardware time synchronization, with one port acting as the sync primary and the rest as secondary ones.
+
+Install the script like the `nRF Sniffer for 802.15.4`_ extcap.
+It requires Python 3.8 or later and the ``pyserial`` package, which must be available to the Python interpreter that Wireshark uses to run the script:
+
+.. code-block:: console
+
+   pip install pyserial
+
+In Wireshark, choose **nRF Sniffer for 802.15.4**, set the channel and the PHY for each port, and start the capture.
+For two or more ports, use the **Primary Port** and **Sync Interval [ms]** options to pick which port receives ``sync primary start <interval_ms>``, while the remaining ports receive ``sync secondary <n>``.
+
+Packets from the individual devices do not reach the host in timestamp order, because each device buffers its output independently.
+The script therefore holds packets back briefly, 0.25 seconds by default, and writes them sorted by their synchronized timestamp, so frames appear in Wireshark with a matching short delay.
+
 Configuration
 *************
 

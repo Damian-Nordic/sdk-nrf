@@ -323,6 +323,7 @@ Peripheral samples
   * Added:
 
     * Hardware time synchronization between several sniffers over a GPIO pin, controlled with the ``sync`` command and configured with the ``sniffer_sync`` devicetree node.
+    * The :file:`scripts/nrf802154_sniffer.py` Wireshark extcap script that presents all connected sniffers as a single interface with one merged timeline.
     * Support for the ``nrf54lm20dongle/nrf54lm20b/cpuapp`` board.
 
   * Updated:
