@@ -1,0 +1,14 @@
+/*
+ * Copyright (c) 2026 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+ *
+ * Common CDC ACM UART properties, included by the board overlays.
+ *
+ * The TX FIFO is deliberately small: it is a strict FIFO, so every queued byte
+ * delays the next sync report. Bursts are absorbed by the prioritized sniffer
+ * ring buffer instead.
+ */
+
+hw-flow-control;
+tx-fifo-size = <2048>;
