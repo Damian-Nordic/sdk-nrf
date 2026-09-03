@@ -201,6 +201,21 @@ For two or more ports, use the **Primary Port** and **Sync Interval [ms]** optio
 Packets from the individual devices do not reach the host in timestamp order, because each device buffers its output independently.
 The script therefore holds packets back briefly, 0.25 seconds by default, and writes them sorted by their synchronized timestamp, so frames appear in Wireshark with a matching short delay.
 
+Showing the channel and the PHY of each frame
+=============================================
+
+With the **Out-Of-Band meta-data** option set to **IEEE 802.15.4 TAP**, the script tags every frame with the channel and the bit rate of the port that captured it.
+The bit rate identifies the PHY, and is 250000 for the O-QPSK with DSSS PHY and 2000000 for the 2 Mbps GFSK PHY.
+Both values are shown in the :guilabel:`IEEE 802.15.4 TAP` branch of the packet details pane, which makes it possible to tell apart the frames of ports configured differently, for example when the ports of a multi-device capture watch different channels.
+
+Wireshark shows this information in the packet list only after you add a column for it.
+Go to :guilabel:`Edit` > :guilabel:`Preferences` > :guilabel:`Appearance` > :guilabel:`Columns`, add an entry of the :guilabel:`Custom` type for each of the following fields, and confirm with :guilabel:`OK`:
+
+* ``wpan-tap.ch_num`` - IEEE 802.15.4 channel.
+* ``wpan-tap.bit_rate`` - PHY bit rate, in bits per second.
+
+Both fields are also available as display filters, so ``wpan-tap.ch_num == 11`` limits the packet list to the frames captured on channel 11.
+
 Configuration
 *************
 

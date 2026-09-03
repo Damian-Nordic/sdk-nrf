@@ -71,6 +71,9 @@ SYNC_INTERVAL_MAX_MS = 60000
 SYNC_PRIMARY_REGEX = r"sync role=primary seq=(\d+) t=(\d+)"
 SYNC_SECONDARY_REGEX = r"sync role=secondary id=\d+ edge=(\d+) t=(\d+)"
 
+PHY_BIT_RATES = {"250k": 250000, "2m": 2000000}
+DEFAULT_BIT_RATE = PHY_BIT_RATES["250k"]
+
 
 class _DEVPROPKEY(ctypes.Structure):
     """Device property key, the one SetupAPI structure pyserial does not declare."""
@@ -508,15 +511,19 @@ class TimeSyncHub:
 
 
 class PcapFormatter:
+    # Version and reserved byte, plus the RSS, bit rate, channel assignment and
+    # LQI TLVs, each padded to a multiple of four bytes.
+    TAP_HEADER_LEN = 4 + 8 + 8 + 8 + 8
+
     @staticmethod
     def pcap_header(dlt: DLT) -> bytes:
         return struct.pack("<LHHIILL", 0xA1B2C3D4, 2, 4, 0, 0, 0x000000FF, dlt)
 
     @staticmethod
     def pcap_packet(frame: bytes, dlt: DLT, channel: int, rssi: int, lqi: int,
-                    timestamp: int) -> bytes:
+                    bit_rate: int, timestamp: int) -> bytes:
         tap = dlt == DLT.DLT_IEEE802_15_4_TAP
-        caplength = len(frame) + (28 if tap else 0)
+        caplength = len(frame) + (PcapFormatter.TAP_HEADER_LEN if tap else 0)
 
         pcap = bytearray()
         pcap += struct.pack("<II", (timestamp // 1000000) & 0xFFFFFFFF,
@@ -524,8 +531,9 @@ class PcapFormatter:
         pcap += struct.pack("<LL", caplength, caplength)
 
         if tap:
-            pcap += struct.pack("<HH", 0, 28)
+            pcap += struct.pack("<HH", 0, PcapFormatter.TAP_HEADER_LEN)
             pcap += struct.pack("<HHf", 1, 4, rssi)
+            pcap += struct.pack("<HHI", 2, 4, bit_rate)
             pcap += struct.pack("<HHHH", 3, 3, channel, 0)
             pcap += struct.pack("<HHI", 10, 1, lqi)
 
@@ -843,8 +851,9 @@ class MultiSnifferEngine:
         del self._pending[:idx]
         ready.sort(key=lambda item: item[0])
 
-        for ts_us, _arrival, channel, content, rssi, lqi in ready:
+        for ts_us, _arrival, channel, content, rssi, lqi, bit_rate in ready:
             fifo_out.write(PcapFormatter.pcap_packet(content, self.dlt, channel, rssi, lqi,
+                                                     bit_rate,
                                                      self._pcap_timestamp_us(ts_us)))
 
     def _handle_packet(self, packet: SnifferPacket) -> None:
@@ -857,7 +866,8 @@ class MultiSnifferEngine:
             return
 
         self._pending.append((ts_us, time.monotonic(), config.channel, packet.content,
-                              packet.rssi, packet.lqi))
+                              packet.rssi, packet.lqi,
+                              PHY_BIT_RATES.get(config.phy, DEFAULT_BIT_RATE)))
 
     def _stop(self):
         # Reached from the capture loop, from a signal handler and from the exit
